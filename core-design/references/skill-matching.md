@@ -29,7 +29,7 @@
 | Skill | `{SKILL_SCENE_BASE_URL}/experience/harness/scene/skills` | `{"firstScene":"需求开发","secondScene":"MML开发","dimType":"产品级","dimName":"UNC USMF  "}` | `skillName`、`skillDescription`、`versions` |
 | 下载 | 被选 Skill 最新版本的 `downloadUrl` | GET，无需拼装路径 | ZIP 包 |
 
-`SKILL_OFFERING_URL` 可覆盖产品完整地址。用户只给出了场景接口的路径，**未提供它们的主机/网关前缀**；运行环境需设置 `SKILL_SCENE_BASE_URL`，脚本不假定它们与产品接口同源。未配置则 WARNING 后跳过，不阻塞。API 字段值（尤其产品名尾部空格）原样传回；展示时可 trim。产品分页读取至末页，不以第一页第一个结果作为默认产品。
+`SKILL_OFFERING_URL` 可覆盖产品完整地址。`SKILL_SCENE_BASE_URL` 默认是 `https://coreinsight.rnd.huawei.com`，表示服务基础地址，不包含 `/experience/harness/scenes`。脚本自动拼接上述场景和 Skill 列表路径，无需额外配置；其他部署可通过该环境变量覆盖。显式设置为空时 WARNING 后跳过，不阻塞。API 字段值（尤其产品名尾部空格）原样传回；展示时可 trim。产品分页读取至末页，不以第一页第一个结果作为默认产品。
 
 选择最新版本按 `uploadDate` 的日期时间降序，不依赖返回顺序，也不按版本字符串字典序排序。版本信息不完整时告警，不猜下载地址、不静默回退旧版本。HTTP 请求有 30 秒超时、响应大小限制，使用系统 TLS 信任，不关闭证书校验、不臆造认证信息。
 

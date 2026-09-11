@@ -237,7 +237,17 @@ class RegistryTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 registry.post_list('https://example.test', {})
 
-    def test_unknown_scene_host_fails_explicitly(self):
+    def test_default_scene_service_without_configuration(self):
+        with patch.dict(os.environ, {}, clear=True), \
+             patch.object(registry, 'post_list', return_value=[]) as post:
+            registry.scenes('22633567')
+            self.assertEqual(post.call_args.args[0],
+                'https://coreinsight.rnd.huawei.com/experience/harness/scenes')
+            registry.skills('需求开发', 'MML开发', 'UNC USMF  ')
+            self.assertEqual(post.call_args.args[0],
+                'https://coreinsight.rnd.huawei.com/experience/harness/scene/skills')
+
+    def test_explicit_empty_scene_host_fails(self):
         with patch.dict(os.environ, {'SKILL_SCENE_BASE_URL': ''}):
             with self.assertRaisesRegex(ValueError, 'SKILL_SCENE_BASE_URL'):
                 registry.scenes('123')

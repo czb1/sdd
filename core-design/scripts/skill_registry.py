@@ -9,7 +9,7 @@ from datetime import datetime
 from pathlib import Path
 
 OFFERING_URL = 'http://coreharness.spec.rnd.huawei.com/core-harness/api/v1/offering/list'
-# The scene API host was not supplied; require deployment configuration.
+SCENE_BASE_URL = 'https://coreinsight.rnd.huawei.com'
 MAX_DOWNLOAD = 50 * 1024 * 1024
 
 
@@ -79,9 +79,9 @@ def offerings(http_url):
 
 
 def scene_endpoint(path):
-    base = os.environ.get('SKILL_SCENE_BASE_URL', '').rstrip('/')
+    base = os.environ.get('SKILL_SCENE_BASE_URL', SCENE_BASE_URL).rstrip('/')
     if not base:
-        raise ValueError('SKILL_SCENE_BASE_URL is not configured (scene API host required)')
+        raise ValueError('SKILL_SCENE_BASE_URL must not be empty')
     return base + path
 
 
