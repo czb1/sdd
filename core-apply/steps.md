@@ -20,7 +20,7 @@
 | 6 | read-context | Step 6 | 读取上下文文件 |
 | 7 | load-code-gen-principles | Step 7 | GATE 加载代码生成原则（references/code-gen-principles.md） |
 | 8 | show-progress | Step 8 | 展示当前进度 |
-| 9 | implement-code-gen | Step 9 | 代码生成：代码理解 → 锚点解析 → P0/P1/P2展示 → 原则自检 → 代码生成 → 标记完成 |
+| 9 | implement-code-gen | Step 9 | 代码生成：代码理解 → 锚点解析及1.x可选领域Skill加载（设计优先，失败降级） → P0/P1/P2展示 → 原则自检 → 代码生成 → 标记完成 |
 | 10 | gate-1-traceability | Step 10 | 门控1 L4 实现追溯验证：cross-doc-checker --layer L4（**必须使用Skill tool调用**） |
 | 11 | code-review | Step 11 | Code Review：规范加载 → codecheck-for-cleancode → cwd-audit（C/C++/Java/Python/Go） |
 | 12 | unit-test | Step 12 | 单元测试：UT生成 → UT修复 → 覆盖率提升 → 断言审查 → 测试报告 |
@@ -49,7 +49,7 @@
 
 **【说明】多仓模式下单仓 Step 4~9 + 门控检查全部由 M-1~M-6 替代**：
 - M-1：多仓检测（读取 repo_assignments.json + 多仓 change 状态检查 + 加载 GATE）— 多仓模式下 status 脚本基于根目录路径不适用，M-1 替代为 Agent 直接读取各仓文件检查状态
-- M-2：按拓扑分批并行代码生成（定义仓先于消费仓，每仓1个子代理，并发上限3），子代理内部包含读取 context files + 代码生成原则 + 代码生成
+- M-2：按拓扑分批并行代码生成（定义仓先于消费仓，每仓1个子代理，并发上限3），子代理内部包含读取 context files + 代码生成原则 + 按仓读取1.x任务的可选领域Skill + 代码生成；输入表显式注入 references/task-skills.md 的绝对路径和消费用途
 - M-3~M-6：分阶段执行，每阶段内各仓 subagent 并行，阶段间串行（所有仓完成 L4 后才进入 Code Review，所有仓完成 Code Review 后才进入 UT，所有仓完成 UT 后才进入 L5）
 - 子代理需要用户决策时升级到主会话通过 AskUserQuestion 让用户决策
 - 阶段间同步规则对齐 core-explore 的 L1 模式："先全部完成 X，再统一开始 Y"

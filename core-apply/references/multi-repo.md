@@ -67,13 +67,15 @@
    | 4 | delta_test_design.md | {repo_path}/docs/changes/{change_name}/delta_test_design.md | **参考输入**：测试设计，理解UT任务应覆盖的测试用例 |
    | 5 | 已有代码文件 | {repo_path}/src/ 等代码目录 | **核心输入**：代码理解的目标文件，生成代码前必须先理解现有代码结构 |
    | 6 | code-gen-principles.md | {skill_dir}/references/code-gen-principles.md | **原则约束（必读）**：15条代码生成原则（C-1~C-15），每个代码生成任务执行前必须对照自检，违反=代码不合格 |
+   | 7 | task-skills.md | {skill_dir}/references/task-skills.md | **领域 Skill 消费规则**：仅对含 Skill 字段的 1.x 任务，读取原始 tasks.md 元数据，按当前仓解析 Skill路径并加载 SKILL.md；低于设计锚点，缺失时 WARNING 后继续 |
 
    **路径说明**：{skill_dir} 为 core-apply 技能安装目录，主会话在构造子代理 prompt 时必须将 {skill_dir} 替换为实际绝对路径（解析方式见 SKILL.md Reference文件路径解析章节）。
 
    执行步骤：
-   a. 读取所有输入文件
+   a. 读取所有输入文件；输入#7是可选增强参考，不可读时记录WARNING并按无领域Skill执行
    b. 对tasks.md中每个待执行的代码生成任务（`- [ ]`状态），执行以下代码生成流程：
       - 解析任务的"设计锚点"字段，定位delta_design.md中的设计模块
+      - 按 task-skills.md（输入#7）从当前仓原始 tasks.md 读取本任务的可选 Skill 字段。没有 Skill 字段则按原流程；有字段时将 Skill路径 相对于 {repo_path} 解析并 Read 对应 SKILL.md。路径或文件无效则 WARNING 后继续。只作为当前任务附加上下文，设计锚点与项目约束优先，不重新匹配或下载，不影响其他仓或2.x及以后任务
       - 执行任务级代码理解：
         - 先尝试调用 CodeBase 工具（GetRemoteCallChain/CodeSemanticSearch/GetFeatureTree）
         - CodeBase 不可用或无结果 → 回退到 grep/read/glob
@@ -85,6 +87,7 @@
    c. 所有任务完成后，汇总生成结果：
       - 已完成任务数/总任务数
       - 每个任务的生成文件列表
+      - 每个任务实际使用的领域Skill及降级WARNING（如有）
       - 遇到的问题（如有）
 
    当前变更：{change_name}

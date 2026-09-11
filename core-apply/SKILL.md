@@ -255,6 +255,7 @@ Display:
 For each pending task:
 1. **针对当前任务进行代码理解**（详见下方 9.1）
 2. **解析设计锚点**（详见下方 9.2）
+   - 仅对 1.x 代码生成任务，按 9.2 中的任务级 Skill 规则加载附加上下文
 3. **分阶段展示设计信息**（P0 → P1 → P2，详见下方 9.3）
 4. **代码生成原则自检**（对照 code-gen-principles.md C-1~C-15，详见下方 9.4）
 5. 执行代码生成（详见下方 9.5）
@@ -320,6 +321,8 @@ For each pending task:
 - 确保理解与实际代码一致后再进行实现
 
 #### 9.2 锚点解析
+
+**任务级领域 Skill（可选）**：从当前仓的原始 `tasks.md` 读取当前 1.x 任务的元数据（脚本返回的任务列表仅为标题/状态概览）。任务没有 `Skill` 字段时按原流程执行；存在时，读取本技能的 [references/task-skills.md](references/task-skills.md)，按其中规则解析 `Skill路径` 并 Read 对应 `SKILL.md`。领域 Skill 的优先级低于 `delta_design.md` 的设计锚点和项目约束。引用文件或领域 Skill 不可读时记录 WARNING，按无 Skill 执行，不阻断任务。不将本规则应用于 2.x / 3.x / 4.x 及以后任务。
 
 ```markdown
 # 从任务的"设计锚点"字段解析锚点
