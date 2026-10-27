@@ -1,6 +1,6 @@
 ---
 name: core-apply
-description: Implement tasks from an CoreSpec change. Use when the user wants to start implementing, continue implementation, or work through tasks.
+description: Implement tasks from an CoreSpec change. Use when the user wants to start implementing, continue implementation, or work through tasks; consume task-linked project Skills and experiences, retrieving missing capabilities through 云见 CLI
 license: MIT
 compatibility: Works without npm - uses Python scripts directly
 metadata:
@@ -408,6 +408,12 @@ The files depend on the schema being used:
 > 本步骤为可配置步骤。执行与否以 Step 0 持久化的 execution-plan-core-apply.json 为准：
 > - **执行计划 steps 数组含 `config_key=show_progress`（type=built_in）条目** → 从该条目 `ref_file.single` 字段取指令文件（动态路径解析参见本SKILL Reference文件路径解析章节）并 Read，按其中指令执行
 > - **执行计划不含本步骤** → 直接进入下一步（指令文件不加载，内容不进上下文）
+
+### 任务执行能力上下文（单仓和多仓均执行）
+
+每个任务开始执行前，读取该任务所在 tasks.md 的 Skill / 经验关联和实际项目级内容，再进行代码理解与生成。已有内容缺失、关联不存在或任务需要变化时，按 [yunjian-skill-use](../yunjian-skill-use/SKILL.md) 的 SDD 路径通过云见 CLI 查找与获取，并同步该任务关联。
+
+安装时同时提供 yunjian-skill-use，按相对路径或技能名定位指引。指引缺失、未命中、CLI 或下载失败时说明并继续原任务；不另建任务能力索引，不将失败内容视为可用，不自动覆盖本地 Skill。多仓仅更新所属仓 tasks.md，由各仓执行者自行加载上下文。
 
 ### 9. Implement code-generation tasks (loop until done or blocked, tasks.md `## 代码生成任务` section only)
 

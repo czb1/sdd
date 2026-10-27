@@ -82,6 +82,8 @@ f. 记录确认结果到内存中，供步骤 4 生成 delta_design.md 时使用
 - {repo}/docs/changes/<change>/delta_test_design.md
 
 生成要求：
+- **任务能力指引（必读）**：读取 {skill_dir}/../yunjian-skill-use/SKILL.md（按技能名定位实际安装路径亦可），按 SDD 路径在任务形成后自主查找并获取 Skill / 经验到本仓项目级目录，关联到本仓 tasks.md，按需完善设计。该动作不受 expert_experience 或编排点开关控制。指引缺失或查找获取失败时说明并继续，不伪造成功关联。
+- tasks.md 是唯一任务能力关联数据源，不在根项目另建汇总索引；不得覆盖其他仓的任务或本地能力内容。
 - delta_design.md 每个设计模块必须包含"对应需求"字段，映射到 delta_spec.md 的需求 ID
 - 将 design.md 的架构设计、组件设计等信息整合到 delta_design.md
 - 跨仓接口章节必须与 shared_context.md 和 cross_repo_contracts.json 一致

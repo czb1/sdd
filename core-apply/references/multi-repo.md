@@ -75,7 +75,7 @@
    读取后输出: "GATE PASSED: references/multi-codegen-template.md loaded"。
    <!-- /GATE:REF -->
 
-   子代理任务描述模板：使用 `references/multi-codegen-template.md`（GATE 已加载）中的模板，将 `{repo}` / `{repo_path}` / `{change_name}` / `{project_root}` / `{skill_dir}` 占位符替换为实际值后作为子代理任务描述。**禁止改写模板中的输入文件表与执行步骤**——子代理按模板流程执行（步骤 c 内嵌 9.1~9.5 等价流程：代码理解 → 锚点解析 → P0/P1/P2 展示 → 原则自检 → 代码生成；模板内已含测试策略解析，tdd 时按红-绿循环执行）。
+   子代理任务描述模板：使用 `references/multi-codegen-template.md`（GATE 已加载）中的模板，将 `{repo}` / `{repo_path}` / `{change_name}` / `{project_root}` / `{skill_dir}` 占位符替换为实际值后作为子代理任务描述。**禁止改写模板中的输入文件表与执行步骤**——子代理按模板流程执行（步骤 c 内嵌 9.1~9.5 等价流程：读取任务能力关联并按需通过云见 CLI 补齐 → 代码理解 → 锚点解析 → P0/P1/P2 展示 → 原则自检 → 代码生成；模板内已含测试策略解析，tdd 时按红-绿循环执行）。
 
 7. 并发规则（对齐通用规则 subagent并行执行规则）：
    - **并发上限**：同时运行的子代理数量不得超过3个

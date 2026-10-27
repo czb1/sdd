@@ -1,6 +1,6 @@
 ---
 name: core-design
-description: Design document generation - reads delta_spec.md from explore phase from docs, fetch rule lists and request for relevant rules, generates design artifacts based on schema definitions with expert experience integration
+description: Design document generation - reads delta_spec.md from explore phase from docs, fetch rule lists and request for relevant rules, generates design artifacts based on schema definitions with expert experience integration and task-level Skill discovery through 云见 CLI
 license: MIT
 compatibility: Works without npm - uses Python scripts with schema-driven generation
 metadata:
@@ -18,7 +18,7 @@ Design document generation for a change.
 - Change name (kebab-case)
 - `docs/relationship.md` - 多仓库依赖关系，理解设计涉及的跨仓库调用链
 - Optional: `--step` for step mode, `--quick` for quick mode
-- Optional: `--query` for expert experience keywords
+- Optional: `--query` for task capability search keywords
 
 ## Execution Method
 
@@ -252,10 +252,10 @@ AskUserQuestion({
 - **单仓** → 跳过（单仓无 impl_questions_for_design.json）
 - **多仓** → 按 references/multi-repo.md M-2 步骤3执行（读取 impl_questions_for_design.json，逐条让用户确认实现层面延迟问题的设计方向）
 
-### Phase 7: Fetch Expert Experience [可配置: expert_experience]
+### Phase 7: Prepare Existing Experience Context [可配置: expert_experience]
 
 > 本步骤为可配置步骤。执行与否以构建执行计划持久化的 execution-plan-core-design.json 为准：
-> - **执行计划 steps 数组含 `config_key=expert_experience`（type=built_in）条目** → 从该条目 `ref_file.single` 字段取指令文件（动态路径解析参见本SKILL Reference文件路径解析章节）并 Read，按其中指令执行（调用 paradigm-exp-use 获取专家经验）
+> - **执行计划 steps 数组含 `config_key=expert_experience`（type=built_in）条目** → 从该条目 `ref_file.single` 字段取指令文件（动态路径解析参见本SKILL Reference文件路径解析章节）并 Read，按其中指令执行（准备已有的项目级设计经验与后续云见 CLI 查找上下文）
 > - **执行计划不含本步骤** → 直接进入 Phase 8（指令文件不加载，内容不进上下文）
 >
 > **执行位置**：Phase 6（读取 brainstorming design.md）之后、Phase 8（生成设计文档）之前执行。
@@ -284,6 +284,14 @@ AskUserQuestion({
 <!-- /GATE:REF -->
 
 **多仓模式**：本 Phase 的单仓文档生成由 M-2 替代；Phase 9~11 仍正常执行。
+
+### 任务形成后：查找与关联 Skill / 经验（单仓和多仓均执行）
+
+在 Phase 8 或多仓 M-2 中，先形成任务，再读取并执行 [yunjian-skill-use](../yunjian-skill-use/SKILL.md) 的 SDD 路径：Agent 按任务判断业务 / 通用能力，通过云见 CLI 查找、获取到项目级目录，并同步该任务所在的 tasks.md。随后根据实际选用内容完善相关设计，再进入 Phase 9 / M-3a。
+
+本动作属于任务生成流程，不受 `expert_experience` 或自定义编排点开关控制；该开关仅控制 Phase 7 的已有设计经验准备。tasks.md 是唯一任务能力关联数据源，不新增索引、字段协议或目录布局。
+
+安装时同时提供 yunjian-skill-use；链接相对当前 Skill 目录解析，运行时可按技能名定位实际安装路径。指引缺失、CLI 不可用、未匹配或获取失败时如实说明并继续原任务，不编造命令或成功关联。多仓执行者必须读取该指引并仅更新本仓任务。
 
 ### Phase 9: 设计追溯验证（强制）[可配置: design_traceability]
 
@@ -341,7 +349,7 @@ The design-phase artifacts are defined in `core-schemas/spec-driven/schema.yaml`
 **Change:** <change-name>
 **Schema:** spec-driven
 **Artifacts (Design Phase only):**
-  ✓ delta_design.md (已填充 - 包含 `language-specific design specifications` 约束 + 专家经验)
+  ✓ delta_design.md (已填充 - 包含 `language-specific design specifications` 约束；经验按实际可用情况使用)
   ✓ delta_test_design.md (已填充)
   ✓ tasks.md (已填充，checkbox格式 verified)
 
@@ -354,7 +362,8 @@ The design-phase artifacts are defined in `core-schemas/spec-driven/schema.yaml`
 - Phase 4 (Code Understanding): ✓
 - Phase 5 (Similar Changes): ✓ (if references exist)
 - Phase 6 (Brainstorming Output): ✓ (if exists)
-- Phase 7 (Expert Experience): ✓ (已注入到 delta_design.md)
+- Phase 7 (Existing Experience Context): <已准备 / 无可复用经验 / 已关闭>
+- Phase 8 (Task Capabilities): <实际选用及获取结果；tasks.md 关联同步结果>
 - Phase 8 (Generate Artifacts): ✓ (已执行内容填充，已对照 design-principles.md + design-views.md)
 - Phase 9 (设计追溯验证): ✓ (cross-doc-checker L2/L3)
 - Phase 10 (design-doc-reviewer 审查): ✓
@@ -364,10 +373,10 @@ The design-phase artifacts are defined in `core-schemas/spec-driven/schema.yaml`
 - Skill instructions extracted: ✓
 - Injected into delta_design.md: ✓
 
-### Expert Experience Integration
-- Query derived from requirements: ✓
-- Expert knowledge fetched: ✓
-- Injected into delta_design.md design decisions: ✓
+### Task Capability Integration
+- Capability query derived from tasks: <实际结果>
+- Skill / experience fetched via 云见 CLI: <实际结果，允许未选用或失败>
+- tasks.md associations and design integration: <实际结果>
 
 ### Content Filling Status
 - delta_spec.md content referenced: ✓
@@ -382,7 +391,7 @@ Ready for implementation. Run /core-apply <change-name>
 - **Design phase only**: core-design does NOT generate proposal.md or delta_spec.md
 - **Schema-driven**: All artifact filenames and formats are defined in schema.yaml
 - **`language-specific design specifications` integration**: Automatically reads and injects these constraints fetched in step 3.
-- **Expert Experience**: Invokes paradigm-exp-use to get relevant knowledge
+- **Skill 与经验**: 任务形成后统一通过云见 CLI 按任务查找与获取，关联到 tasks.md；已有项目经验可辅助设计
 - **Similar Changes**: Reads referenced similar changes for design patterns
 - **tasks.md NOT task.md**: The schema defines artifact ID `tasks` which generates `tasks.md` (plural)
 - **Checkbox format**: The schema requires checkbox format (`- [ ]`) for tasks

@@ -30,8 +30,8 @@
 | 4 | code-understanding | Phase 4 | 代码理解：CodeBase 优先 → read/grep/glob 回退 → read 验证 |
 | 5 | read-similar-changes **[可配置: read_similar]** | Phase 5 | 读取 Similar Requirements Reference 归档文件。`read_similar` 不含于执行计划时跳过 |
 | 6 | read-brainstorming-output | Phase 6 | 读取 .brainstorming_output 元数据 + design.md |
-| 7 | fetch-expert-experience **[可配置: expert_experience]** | Phase 7 | 调用 paradigm-exp-use 获取专家知识；使用后删除 expert_experience.md。`expert_experience` 不含于执行计划时跳过 |
-| 8 | generate-artifacts | Phase 8 | 生成设计文档：读取参考 → 对照原则/视图约束 → 填充模板 → 锚点提取 |
+| 7 | fetch-expert-experience **[可配置: expert_experience]** | Phase 7 | 准备已有项目经验及查找上下文；不独立拉取经验。`expert_experience` 不含于执行计划时跳过 |
+| 8 | generate-artifacts | Phase 8 | 生成设计文档：读取参考 → 对照原则/视图约束 → 填充模板 → 锚点提取 → 任务形成后通过云见 CLI 查找、项目级获取并同步 tasks.md |
 | 9 | design-traceability **[可配置: design_traceability]** | Phase 9 | 设计追溯验证：cross-doc-checker --layer L2 + --layer L3（**必须使用 Skill tool 调用**，**强制 subagent 执行**）。`design_traceability` 不含于执行计划时跳过并豁免强制位（含 Phase 9→10 转换门控） |
 | 10 | design-review **[可配置: design_review]** | Phase 10 | design-doc-reviewer 审查（**强制 subagent 执行**）。`design_review` 不含于执行计划时跳过并豁免强制位（含 Phase 10→11 转换门控） |
 | 11 | cleanup-brainstorming **[可配置: cleanup]** | Phase 11 | 清理 brainstorming 临时文件 + clarification_summary.json。**core-design 流程最后一步（`cleanup` 开启时），禁止跳过**。`cleanup` 不含于执行计划时跳过，须显式记录"cleanup 已关闭，临时文件残留" |
@@ -50,8 +50,8 @@
 | 4 | code-understanding | Phase 4 | 代码理解（不变） |
 | 5 | read-similar-changes **[可配置: read_similar]** | Phase 5 | 读取 Similar Requirements Reference（不变） |
 | 6 | read-brainstorming-output | Phase 6 | 读取 .brainstorming_output 元数据 + design.md（不变） |
-| 7 | fetch-expert-experience **[可配置: expert_experience]** | Phase 7 | 调用 paradigm-exp-use 获取专家知识（不变） |
-| 8 | M-2 | Phase 8 | 各仓按仓生成设计文档 — 按 multi-repo.md 执行（含 impl_questions 用户确认 + subagent 并行文档生成，替代单仓 generate-artifacts） |
+| 7 | fetch-expert-experience **[可配置: expert_experience]** | Phase 7 | 准备已有项目经验及查找上下文（不变） |
+| 8 | M-2 | Phase 8 | 各仓按仓生成设计文档 — 按 multi-repo.md 执行（含 impl_questions 用户确认 + subagent 并行文档生成，替代单仓 generate-artifacts；各仓任务形成后执行云见 CLI 能力查找、项目级获取与本仓 tasks.md 同步） |
 | 9 | M-3a **[可配置: design_traceability]** | Phase 9 | 设计追溯验证 — 按 multi-repo.md M-3a + `ref_file.multi` 指令文件 subagent 并行执行（**强制调用 cross-doc-checker，禁止用 design-doc-reviewer 替代**）。`design_traceability` 不含于执行计划时跳过 M-3a 并豁免强制位 |
 | 10 | M-3b **[可配置: design_review]** | Phase 10 | design-doc-reviewer 审查 — 按 multi-repo.md M-3b + `ref_file.multi` 指令文件 subagent 并行执行（**强制调用 design-doc-reviewer，禁止用 cross-doc-checker 替代；`design_traceability` 开启时 M-3a 全部通过后方可执行**）。`design_review` 不含于执行计划时跳过 M-3b 并豁免强制位 |
 | 11 | cleanup **[可配置: cleanup]** | Phase 11 | 清理临时文件 — 按 multi-repo.md cleanup + `ref_file.multi` 指令文件执行（项目级 + 各仓级双层清理）。**core-design 流程最后一步（`cleanup` 开启时），禁止跳过**。`cleanup` 不含于执行计划时跳过，须显式记录"cleanup 已关闭，临时文件残留" |

@@ -1,5 +1,7 @@
 # Phase 11: 清理临时文件（单仓模式指令文件）
 
+**清理边界（优先于下方所有删除步骤）**：先读取相关 tasks.md 的能力关联，确认下载的 Skill / 经验实际路径。任务仍引用的项目级内容必须保留；下方 downloads/、workflow/、expert_experience.md 等仅在确认为临时且未被任务引用时才可删除。目录含引用内容时不得整目录删除，清理验证也应排除这些保留项。不要将“已注入设计文档”当作可删除任务执行上下文的依据。
+
 > 本文件为可配置步骤 `cleanup` 的指令文件（单仓版）。仅在执行计划含 `key=cleanup` 条目时被 Read。
 
 **执行位置**：Phase 10（design-doc-reviewer 审查）完成后执行。如 Phase 9/10 被关闭，则 Phase 8 完成后执行。
@@ -54,8 +56,8 @@
 
 ### 4. 清理 expert_experience.md
 
-- 删除 `docs/changes/<change-name>/expert_experience.md`（Phase 7 获取的专家经验文件）
-- 该文件在 Phase 8 生成设计文档时已被注入 delta_design.md，可以安全清理
+- 删除 `docs/changes/<change-name>/expert_experience.md`（旧流程遗留的临时经验文件；仅在未被任务引用时清理）
+- 该文件即使已注入 delta_design.md，也必须先确认未被 tasks.md 引用；仍被任务引用时保留并跳过以下删除脚本
 - 使用 Python 脚本清理：
   ```python
   from pathlib import Path
@@ -70,7 +72,7 @@
 
 ### 5. 清理 workflow 目录
 
-- 删除 `workflow/` 目录（paradigm-exp-use 可能创建的临时目录）
+- 删除 `workflow/` 目录（历史流程可能创建的临时目录）
 - 使用 Python 脚本清理：
   ```python
   import shutil
