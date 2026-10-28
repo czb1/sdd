@@ -127,6 +127,6 @@ For each artifact to generate:
 - Read context files (delta_spec.md, `language-specific design specifications`, similar changes, Phase 7 expert experience context)
 - Generate artifact with references to context
 - Ensure `language-specific design specifications` skill usage instructions are included in delta_design.md
-- When applicable, integrate actually available experience into design decisions; after tasks are formed, follow yunjian-skill-use for CLI discovery and task associations
+- When applicable, integrate actually available experience into design decisions; after tasks are formed, follow this Skill’s consumption rules for CLI discovery and task associations
 - **CRITICAL: Fill template placeholders with actual content before writing**
 ```

@@ -67,7 +67,7 @@
 
 **Execution**: 完整执行指令（读取 involved_repos、brainstorming design.md 读取、impl_questions 逐条确认、子代理任务描述模板含 10 行输入文件表、并发上限 3 分批启动、容错机制、多仓文档读取确认、跨仓归档引用解析）见 **references/m2-multi.md**（本 M 阶段唯一执行权威）。
 
-**任务能力关联**：各仓在 M-2 任务形成后执行 yunjian-skill-use 的 SDD 路径，通过云见 CLI 获取内容到本仓并同步本仓 tasks.md；查找失败不阻断原流程，详见 m2-multi.md。
+**任务能力关联**：各仓在 M-2 任务形成后执行本 Skill「Skill 与经验消费规则」的 SDD 路径，通过云见 CLI 获取内容到本仓并同步本仓 tasks.md；查找失败不阻断原流程，详见 m2-multi.md。
 
 **Output**: 各涉及仓的 `delta_design.md`、`tasks.md`、`delta_test_design.md`
 **Checkpoint**: 所有涉及仓的设计文档已生成 + 多仓文档读取确认已输出 + impl_questions用户确认已完成
