@@ -28,6 +28,7 @@ b. **pre-codegen 插槽条目（任务级，每个代码生成任务执行前）
 b1. **测试策略解析（进入任务循环前）**：读取本仓 tasks.md 头部 `测试策略` 字段（tdd / test-after；字段不存在默认 test-after）。两种策略共用下方 step c 同一流程，差异仅在 step c 的"执行代码生成"处：`tdd` 时按 `references/red-green-tdd.md` 测试先行（先写失败测试确认红灯，再实现最少代码确认绿灯），`test-after` 时直接生成代码。
 c. 对tasks.md中每个待执行的代码生成任务（`- [ ]`状态），执行以下代码生成流程：
    - **【强制】循环对象边界**：仅执行 tasks.md `## 代码生成任务` 章节（1.x）的待办任务。tasks.md 的 `## Code Review 任务`（2.x）属 M-4（`code_review`）、`## 单元测试任务`（3.x）属 M-5（`unit_test`），由对应 M 阶段子代理执行，**禁止**在本步骤执行——本仓执行计划片段 `steps` 数组不含对应 `config_key` 条目时整章节跳过。若 1.x 全部 `- [x]` 无待办，直接执行步骤 d（post-codegen 编排点），**不得**将 2.x/3.x 未完成任务作为本步骤循环对象
+   - 读取任务 Skill 字段及项目级内容，尊重「不使用（用户选择）」，复用主会话已批量锁定的关联；同名内容丢失时按原决定补下到本仓 .codeagent/skills/<name>/。新增 / 改选候选返回主会话汇总，不在子代理或逐任务循环中自行弹窗、下载替代 Skill；按 {skill_dir}/SKILL.md 的消费规则处理。失败说明后继续，不另建索引、不修改其他仓。该动作不依赖 pre-codegen 插槽
    - 解析任务的"设计锚点"字段，定位delta_design.md中的设计模块
    - 执行任务级代码理解：
      - 先尝试调用 CodeBase 工具（GetRemoteCallChain/CodeSemanticSearch/GetFeatureTree）

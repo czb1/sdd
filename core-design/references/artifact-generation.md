@@ -36,7 +36,7 @@
 | P0 | 项目级 design.md | `docs/specs/design.md` | 提取全局架构设计和技术选型 |
 | P0 | 相关模块级 design.md | `docs/specs/<module-name>/design.md` | 提取受影响模块的设计细节 |
 | P1 | 项目级 spec.md | `docs/specs/spec.md` | 提取全局规格说明和模块关系 |
-| P2 | expert_experience.md | `docs/changes/<change-name>/expert_experience.md` | 提取专家经验 |
+| P2 | expert_experience.md | `docs/changes/<change-name>/expert_experience.md` | 仅在存在且适用时复用已有经验，不要求生成此文件 |
 
 ## 8.2 填充模板占位符
 
@@ -74,7 +74,7 @@
 
 ## 8.4 tasks.md 结构 + 8.5 设计锚点提取
 
-见 **references/tasks-md-guidance.md**（tasks.md 结构指导 + 锚点格式规范 + 自动提取示例）。
+必须读取 **references/tasks-md-guidance.md**（tasks.md 结构指导、任务形成后的云见 CLI 能力查找与关联、锚点格式规范及提取示例），在生成任务后先准备候选并按任务组批量确认，再去重下载、原子替换项目级 Skill 并回写 tasks.md 的 Skill 字段。此动作不受 expert_experience 开关控制。
 
 ## Artifact Generation Scripts
 
@@ -112,17 +112,8 @@ result = subprocess.run([sys.executable, config_dir / 'skills' / 'core-design' /
 sys.exit(result.returncode)
 "
 
-# With expert experience query
-python -c "
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path.home() / '.config' / 'opencode' / 'skills' / 'core-shared' / 'scripts'))
-from core_paths import get_opencode_config_dir
-config_dir = get_opencode_config_dir()
-import subprocess
-result = subprocess.run([sys.executable, config_dir / 'skills' / 'core-design' / 'scripts' / 'main.py', 'ff', '--change', '<name>', '--query', '<keywords>', '--design-rules', '<temp_rule.json>'])
-sys.exit(result.returncode)
-"
+# --query 如有提供，由 Agent 用作任务形成后的云见 CLI 查找关键词参考。
+# 不通过旧生成脚本触发独立经验获取。
 ```
 
 The scripts:
@@ -136,6 +127,6 @@ For each artifact to generate:
 - Read context files (delta_spec.md, `language-specific design specifications`, similar changes, Phase 7 expert experience context)
 - Generate artifact with references to context
 - Ensure `language-specific design specifications` skill usage instructions are included in delta_design.md
-- Ensure expert experience is injected into design decisions
+- When applicable, integrate actually available experience into design decisions; after tasks are formed, follow this Skill’s consumption rules for CLI discovery and task associations
 - **CRITICAL: Fill template placeholders with actual content before writing**
 ```

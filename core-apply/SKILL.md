@@ -1,6 +1,6 @@
 ---
 name: core-apply
-description: Implement tasks from an CoreSpec change. Use when the user wants to start implementing, continue implementation, or work through tasks.
+description: Implement tasks from an CoreSpec change. Use when the user wants to start implementing, continue implementation, or work through tasks; consume task-linked project Skills and experiences, retrieving missing capabilities through 云见 CLI
 license: MIT
 compatibility: Works without npm - uses Python scripts directly
 metadata:
@@ -10,6 +10,49 @@ metadata:
 ---
 
 Implement tasks from an CoreSpec change.
+
+## Skill 与经验消费规则
+
+### 能力判断与候选查找
+
+以当前任务目标、代码仓和上下文为输入，由 Agent 自主判断需要业务相关能力还是通用能力；需要两类能力时分别选择对应路径。SDD 只针对 tasks.md 的 1.x 代码生成任务，结合任务描述和「编程语言」匹配候选。
+
+| 能力类型 | 查找与选择 |
+|---|---|
+| 业务相关 | 结合 git remote、仓库根目录名、.codeagent/product.json 解析产品名 → 通过云见 CLI 获取产品场景 → 按任务描述与编程语言语义匹配场景（可多选）→ 获取命中场景的 Skill 名称及描述 |
+| 业务路径未命中 | 产品无法定位、场景无法匹配或场景无合适 Skill 时，通过云见 CLI 分别检索最多 **3 个 Skill 候选**和经验引擎中最多 **3 条经验候选**，综合判断 Skill、经验或两者组合 |
+| 通用能力 | 跳过产品和场景链路，直接通过云见 CLI 检索通用 Skill |
+
+产品名无法可靠解析或来源有冲突时，向用户询问产品名，允许跳过；跳过后按业务未命中路径处理，不反复追问。为每个任务预判最多 Top3 Skill，给出一句话匹配理由及 Agent 首选；不足时按实际数量处理，不强行凑数。场景已有合适 Skill 或当前只需要通用能力时，不自动追加业务兜底的经验检索。一侧检索失败时仍可判断另一侧已返回的候选，但服务错误不能报告为确定无结果。
+
+### 批量确认（候选准备后、下载前）
+
+- 按任务组聚合候选，一次 AskUserQuestion（或当前环境等价交互工具）批量展示，不逐任务弹窗。展示任务编号、编程语言、候选名称 / 描述、匹配理由，并对每个首选标注 **✓ 推荐**；有经验候选时一起展示拟采用内容。
+- 支持用户在同一次回答中按任务或任务组指定 Skill / 不使用；固定附加 **全部由 Agent 决定** 和 **本次不使用外部 Skill** 两个选项。
+- 同一次回答的优先级为：全局「本次不使用外部 Skill」最高，其次逐任务指定，再次任务组指定，最后默认首选。某任务明确选择不使用时不得回退成推荐项，也不得通过新获取经验绕过。选择「全部由 Agent 决定」时采用首选；选择「本次不使用外部 Skill」时，本轮展示范围内的任务均不下载或使用外部 Skill，也不通过经验兜底绕过该选择。
+- 用户跳过、提交但未选，或交互工具明确结束并返回无答案时，静默采用仍有合适候选任务的 Agent 首选；部分任务未指定时仅对这些任务采用首选。正在等待的提问不能仅凭时间流逝判为无响应；工具故障不能冒充用户跳过。
+- 用户指定名称或明确确认推荐项记为「用户指定」；选择「全部由 Agent 决定」、跳过 / 未选或交互返回无答案后采用首选，记为「Agent 自选」。最终输出列明哪些任务由用户指定、哪些是 **Agent 自选**，以及哪些不使用或获取失败。无合适候选时继续原任务，不虚构首选。
+- 以上默认规则只用于能力候选选择，不覆盖执行计划确认本身的空应答规则。单仓由主会话统一确认；多仓子代理只准备候选，由主会话汇总各仓任务组后统一提问并分发锁定结果，禁止子代理各自弹窗。
+
+### CLI 接入、去重与项目级落地
+
+- 所有产品、场景、Skill 与经验的查找和获取统一通过云见 CLI 完成。读取实际可用的云见 CLI Skill / 操作指引及帮助信息，不编造命令、参数、接口或标识。scenes(product)、skills(scene)、download(skill_name) 是 Registry 的逻辑能力，经 CLI 调用，不另建绕开 CLI 的 HTTP 获取路径。
+- 云见 CLI Skill 提供操作指引，业务 / 通用 Skill 提供任务实际使用的能力，二者不要混淆。其他场景先安装并读取云见 CLI Skill；已安装时直接读取。
+- CLI、操作指引、身份、安装入口或服务不可用时，说明本次未获取到能力，继续原任务。交互工具故障时说明无法完成候选确认，本轮不新增下载；已有明确锁定的关联仍可使用。
+- 确认或默认选择锁定后，扫描已选集合，**按 skill name 去重**；同一名称下载一次，多个任务共同引用。多仓可复用下载包，但分别安装到所属仓项目目录；候选及确认结果仅暂存在主会话上下文，不另建索引。
+- Skill 包先解压到临时目录，校验名称、内容可读性及解压路径未越界，再原子替换项目级 **.codeagent/skills/<name>/**。本轮明确获取的同名 Skill 可以替换；只替换该名称目录，不改动其他 Skill 或相邻目录。
+- 下载、校验或原子替换失败时保留原同名目录，不将半成品当作成功结果；只有验证旧内容仍适用时才继续使用旧内容并如实说明。经验按项目已有约定保存到项目级目录；单项失败不阻断其余成功内容或原任务。
+
+### tasks.md 回写与后续消费
+
+- **SDD 场景**：落地成功后回写对应任务的 **Skill 字段**，记录实际锁定名称、可读本地路径及选择来源（用户指定 / Agent 自选）；经验按任务已有描述约定关联。保留任务编号、checkbox、设计锚点及测试策略。
+- 用户明确不使用时，将 Skill 字段写为「不使用（用户选择）」；无候选或获取失败时如实注明，不能将未成功落地的内容写成可用关联。明确不使用是有效决策，不能被当成缺少关联而自动重新检索。
+- **其他场景**：直接用于当前任务，不修改 tasks.md，即使项目中已有该文件。
+- tasks.md 是 SDD 任务及其能力关联的唯一数据源；下载文件只承载能力内容，不新增任务能力索引。
+- 执行已有 SDD 任务时先读 Skill 字段及本地实际内容，复用已锁定的内容，不重复确认。只有确需新增 / 改选 Skill 时，才在任务循环前汇总受影响任务，执行一次批量确认；单纯补下已锁定的同名 Skill 无须再次选型。循环中才发现新增 / 改选需求时，先收集并预检其余待办任务，返回主会话的批量准备阶段统一处理，不逐任务临时弹窗；已有可用关联的任务可以继续。用户明确不使用的任务保持该决定，除非用户更改。
+- 多仓以任务所属代码仓定位产品，内容落到该仓 .codeagent/skills，关联写入该仓 tasks.md；各仓执行者自行读取上下文，不在根项目另建汇总索引或修改其他仓任务。
+- 没有本轮明确获取或更新决定时不自动覆盖项目本地内容；清理时保留任务仍引用的 Skill 与经验。
+- 最终简要报告查找、选择来源、安装及 tasks.md 同步结果。获取失败不阻断原任务，同步未成功时不得宣称完成。
 
 **Input**: Optionally specify a change name. If omitted, check if it can be inferred from conversation context. If vague or ambiguous you MUST prompt for available changes.
 
@@ -408,6 +451,12 @@ The files depend on the schema being used:
 > 本步骤为可配置步骤。执行与否以 Step 0 持久化的 execution-plan-core-apply.json 为准：
 > - **执行计划 steps 数组含 `config_key=show_progress`（type=built_in）条目** → 从该条目 `ref_file.single` 字段取指令文件（动态路径解析参见本SKILL Reference文件路径解析章节）并 Read，按其中指令执行
 > - **执行计划不含本步骤** → 直接进入下一步（指令文件不加载，内容不进上下文）
+
+### 任务执行能力上下文（单仓和多仓均执行）
+
+每个任务开始执行前，按本 Skill 的「Skill 与经验消费规则」读取该任务所在 tasks.md 的 Skill / 经验关联及项目级实际内容，再进行代码理解与生成。明确不使用时尊重该选择；已锁定的内容丢失时可补下同名 Skill。需要新增或改选时，在进入任务循环前汇总受影响任务，先按组批量确认，再获取并回写 Skill 字段。
+
+多仓由各仓执行者自行读取消费规则及任务上下文，只更新所属仓 tasks.md；获取失败时说明并继续原任务。
 
 ### 9. Implement code-generation tasks (loop until done or blocked, tasks.md `## 代码生成任务` section only)
 
