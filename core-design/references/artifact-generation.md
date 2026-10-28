@@ -74,7 +74,7 @@
 
 ## 8.4 tasks.md 结构 + 8.5 设计锚点提取
 
-必须读取 **references/tasks-md-guidance.md**（tasks.md 结构指导、任务形成后的云见 CLI 能力查找与关联、锚点格式规范及提取示例），在生成任务后执行能力查找、项目级获取与 tasks.md 同步。此动作不受 expert_experience 开关控制。
+必须读取 **references/tasks-md-guidance.md**（tasks.md 结构指导、任务形成后的云见 CLI 能力查找与关联、锚点格式规范及提取示例），在生成任务后先准备候选并按任务组批量确认，再去重下载、原子替换项目级 Skill 并回写 tasks.md 的 Skill 字段。此动作不受 expert_experience 开关控制。
 
 ## Artifact Generation Scripts
 

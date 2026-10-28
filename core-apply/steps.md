@@ -21,7 +21,7 @@
 | 6 | read-context | Step 6 | 读取上下文文件 |
 | 7 | load-code-gen-principles | Step 7 | GATE 加载代码生成原则（references/code-gen-principles.md） |
 | 8 | show-progress | Step 8 | 展示当前进度 **[可配置: show_progress]**（默认关闭）：指令文件 references/show-progress.md，存在性判断见执行计划（含则 Read 执行，不含则跳过） |
-| 9 | implement-code-gen | Step 9 | 代码生成：GATE 加载 references/code-generation-procedure.md（先读取 tasks.md 能力关联及项目级内容，缺失时通过云见 CLI 补齐并同步 → 9.1 代码理解 → 9.2 锚点解析 → 9.3 P0/P1/P2 展示 → [pre-codegen 编排点] → 9.4 原则自检 → 9.5 代码生成）→ 标记完成。**循环对象仅限 tasks.md `## 代码生成任务` 章节（1.x）**；`## Code Review 任务`（2.x）属 Step 11（code_review）、`## 单元测试任务`（3.x）属 Step 12（unit_test），对应可配置步骤关闭时整章节跳过、禁止在 Step 9 执行 |
+| 9 | implement-code-gen | Step 9 | 代码生成：GATE 加载 references/code-generation-procedure.md（循环前读取 Skill 字段并尊重不使用决定，新增 / 改选时按组批量确认后补齐；每任务读取锁定内容 → 9.1 代码理解 → 9.2 锚点解析 → 9.3 P0/P1/P2 展示 → [pre-codegen 编排点] → 9.4 原则自检 → 9.5 代码生成）→ 标记完成。**循环对象仅限 tasks.md `## 代码生成任务` 章节（1.x）**；`## Code Review 任务`（2.x）属 Step 11（code_review）、`## 单元测试任务`（3.x）属 Step 12（unit_test），对应可配置步骤关闭时整章节跳过、禁止在 Step 9 执行 |
 | 10 | gate-1-traceability | Step 10 | 门控1 L4 实现追溯验证 **[可配置: l4_review]**：指令文件 references/l4-review.md，存在性判断见执行计划（含则 Read 执行，不含则跳过） |
 | 11 | code-review | Step 11 | Code Review **[可配置: code_review]**：指令文件 references/code-review.md，存在性判断见执行计划 |
 | 12 | unit-test | Step 12 | 单元测试 **[可配置: unit_test]**：指令文件 references/unit-test.md，存在性判断见执行计划 |
@@ -44,7 +44,7 @@
 | 1 | version-check | Step 1 | Version Check **[可配置: version_check]** — 第一个 Phase 的第二个动作，紧随 Step 0，多仓下不变；指令文件 references/version-check.md（单多仓通用），存在性判断见执行计划；Step 8 同为主会话可配置步骤（show_progress 默认关闭，M-2 之前存在性判断执行） |
 | 2 | select-change | Step 2 | 选择 change — 不变 |
 | 3 | M-1 | Step 3 | 多仓检测 + 多仓 change 状态检查 — 读取 repo_assignments.json，确认 involved_repos 列表 + Agent 直接 Glob/Read 检查各仓 artifacts/tasks 状态 + 加载 references/multi-repo.md GATE |
-| 4~7 | M-2 | Step 4~9 | 按仓拓扑分批 + 子代理并行代码生成（含代码生成原则注入 + 读取本仓 tasks.md 能力关联并按需通过云见 CLI 补齐 + pre-codegen 编排点） — 按 references/multi-repo.md 执行（GATE 加载 multi-codegen-template.md 子代理模板），子代理按拓扑分批并行读取 context files + 原则文件 + 并行执行代码生成（**循环对象仅限 tasks.md `## 代码生成任务` 章节 1.x**；2.x 属 M-4、3.x 属 M-5，对应 M 关闭时整章节跳过，禁止在 M-2 执行） |
+| 4~7 | M-2 | Step 4~9 | 按仓拓扑分批 + 子代理并行代码生成（含代码生成原则注入 + 主会话统一批量确认新增 / 改选能力后，各仓读取锁定 Skill 字段并按需补齐同名内容 + pre-codegen 编排点） — 按 references/multi-repo.md 执行（GATE 加载 multi-codegen-template.md 子代理模板），子代理按拓扑分批并行读取 context files + 原则文件 + 并行执行代码生成（**循环对象仅限 tasks.md `## 代码生成任务` 章节 1.x**；2.x 属 M-4、3.x 属 M-5，对应 M 关闭时整章节跳过，禁止在 M-2 执行） |
 | 8 | M-3 | Step 10 | 各仓 L4 实现追溯验证 **[可配置: l4_review]** — 指令文件 references/l4-review-multi.md，存在性判断见执行计划（subagent 并行） |
 | 9 | M-4 | Step 11 | 各仓 Code Review **[可配置: code_review]** — 指令文件 references/code-review-multi.md，存在性判断见执行计划（subagent 并行） |
 | 10 | M-5 | Step 12 | 各仓单元测试 **[可配置: unit_test]** — 指令文件 references/unit-test-multi.md，存在性判断见执行计划（subagent 并行） |
