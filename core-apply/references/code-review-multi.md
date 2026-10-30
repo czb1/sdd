@@ -1,88 +1,188 @@
-# Step 11: Code Review（多仓模式指令）
+# Step 11: Code Review（单仓模式指令）
 
-> 本文件为可配置步骤 `code_review` 的指令文件（多仓版）。仅在执行计划含 `key=code_review` 条目时被 Read。
-> 指令来源：`references/multi-repo.md` 的 **M-4**（多仓下 Code Review 的唯一执行权威，与 multi-repo.md 内容一致）。
-> Code Review 检查范围：读取已完成（`- [x]`）代码生成任务的"生成文件"字段，汇总为增量变更文件列表——仅审查这些文件，禁止全量扫描。
+> 本文件为可配置步骤 `code_review` 的指令文件（单仓版）。仅在执行计划含 `key=code_review` 条目时被 Read。
 
-## 多仓下的执行位置
+**检查范围**：代码生成任务（Step 9）产出的变更文件（增量，禁止全量扫描）。
 
-多仓模式下，Code Review 由 **M-4** 承担（替代单仓 Step 11 code-review）。M-3（各仓 L4 验证）通过后，主会话分派 M-4 子代理并行执行各仓 Code Review：
+**【执行模式】**: subagent（强制）— 此步骤必须通过子代理执行，禁止主会话直接执行
+**加载技能**: ["codecheck-for-cleancode", "cwd-audit"]
+**同步/异步**: sync
 
-- M-4: 各仓Code Review（subagent并行，替代Code Review环节）
+根据编程语言选择对应的代码检视技能：
 
-## M-4 执行指令
+| 编程语言 | 规范检查 | 内存安全检查 |
+|----------|---------|-------------|
+| cpp/c/c++/java/python/go | `codecheck-for-cleancode` | `cwd-audit`（检测+修复） |
+| javascript/typescript/other | `codecheck-for-cleancode` | 跳过 |
 
-**Replaces**: steps.md Step 9 code-review（单仓步骤）
-**Input**: 各仓代码文件（仅增量变更文件）
+#### 11.1 规范加载 -- 筛选当前实现相关的规范内容
 
-### 1. 对每个涉及仓启动子代理执行Code Review
+11.1.1 **筛选规范目录**
+从 `docs/rule_index.md` 读取的规范目录树，识别适合当前阶段生成的代码的目录条目：
 
-子代理任务描述模板：
+**筛选过程分为两步**：
+1. 根据当前需求涉及的编程语言，只处理对应语言下的目录条目。
+2. 从对应语言的目录中，挑选与代码实现细节、语法规则、编码格式相关的目录。
 
-```
-你是仓 {repo} 的专属代码审查代理。请对 {repo} 仓执行 Code Review：
+**【强制要求】**
+- 不得选择当前需求未涉及语言的规范目录。
+- 不得将不同语言的目录合并到同一列表中。
+- 必须保持以语言为维度的独立目录列表。
+- 只选择与 apply 阶段相关的目录：适用于具体代码实现、语法细节、编码格式、代码生成或局部实现检查的目录。
+- 必须从`docs/rule_index.md`原始目录条目中选择，不得自行编造、改写或补充目录名称。
+- 目录名称必须完整保留，不得只传递末级目录名称。
+- 若某种相关语言下没有合适的 Apply 编码规范目录，则该语言对应的目录列表返回空数组。
 
-输入文件（必须全部读取后再开始执行步骤）：
+Apply 阶段 通常可关注以下类型的规范：
+- 具体语法规则与语言特性使用
+- 命名格式、缩进、空格等代码风格
+- API 具体调用方式
+- 函数/方法的实现规范
+- 异常捕获与处理的具体写法
+- 注释规范与文档字符串
+- 代码组织结构（文件/包/模块）
+- 变量声明与作用域规则
+- 类/接口的具体实现方式
+- 代码生成、模板使用
 
-| # | 文件 | 路径 | 消费用途 |
-|---|------|------|----------|
-| 1 | tasks.md | {repo_path}/docs/changes/{change_name}/tasks.md | **核心输入**：读取已完成（`- [x]`）的代码生成任务，提取每个任务的"生成文件"字段，汇总为增量变更文件列表。仅对这些文件执行Code Review，禁止对全量代码做检查 |
-| 2 | 增量变更文件 | tasks.md中各任务的生成文件 | **核心输入**：Code Review的目标文件，仅限本次代码生成环节新增/修改的文件，禁止扫描整个src/目录 |
-| 3 | delta_design.md | {repo_path}/docs/changes/{change_name}/delta_design.md | **辅助参考**：设计文档，用于理解代码应实现的功能，辅助判断代码逻辑正确性 |
-| 4 | 执行计划片段 | {project_root}/docs/.flow_context/execution-plan-fragment-core-apply-{repo}.json | **编排输入**：本仓执行计划片段。post-review 插槽条目在 Code Review 完成后执行；不在插槽中的编排点不执行 |
+不属于 Apply 阶段筛选范围：
+- 架构层面的模块划分（Design 阶段已完成）
+- 高层设计原则（如设计模式选择、架构决策）
+- 整体职责划分（Apply 阶段主要执行具体实现）
 
-**【强制】增量检查范围约束**：
-- Code Review**仅检查本次变更引入的增量代码**（tasks.md中已完成任务的生成文件），不做全量代码检查
-- codecheck-for-cleancode通过 `--files` 参数传入增量文件列表，禁止不传--files参数的全量扫描
-- cwd-audit仅对增量文件执行检测，禁止扫描未变更的既有代码
-- 全量代码中存在的既有问题（如历史存量规范问题）不在本次Code Review的修复范围内，不应作为findings报告
+例如，`docs/rule_index.md` 内容包含：
+```markdown
 
-执行步骤（3轮修复循环全部在子代理内部完成）：
-1. 读取tasks.md，提取已完成代码生成任务的生成文件列表，作为增量变更文件清单
-2. 根据编程语言选择对应的代码检视技能：
-   - C/C++/Java/Python/Go: 规范加载 → codecheck-for-cleancode（--files增量文件）→ cwd-audit（仅增量文件）
-3. 读取审查输出的findings列表
-4. **【强制】3轮自动修复循环**（禁止跳过，禁止直接报告问题而不修复，修复循环全部在子代理内部完成）：
-
-   **修复 = 编写/修改代码**，不是"验证发现"或"确认问题"。每一轮修复必须产生实际的代码变更（Edit/Write操作），不允许仅读取文件确认问题后进入下一轮。
-
-   如果存在ERROR级finding，必须执行以下修复循环：
-   ```
-   修复轮次 = 0
-   while 存在ERROR级finding AND 修复轮次 < 3:
-       修复轮次 += 1
-       输出 "修复轮次 {修复轮次}/3：发现 {ERROR数量} 个ERROR"
-       对每个ERROR执行修复（使用Edit/Write工具修改增量代码文件）
-       修复后重新执行审查（仅检查增量文件）
-       读取新的findings列表
-   ```
-5. 3轮后仍有ERROR级finding → 返回ESCALATE状态 + blocking_issues列表
-6. **【强制】禁止发现ERROR后直接返回ESCALATE而不执行修复循环**
-7. **【强制】子代理必须在内部完成3轮修复循环后才返回结果** — 禁止返回fix_rounds<3的ESCALATE，主会话不会重新启动子代理执行修复
-8. **【强制】修复轮次必须包含实际代码变更** — 如果某轮修复没有任何Edit/Write操作，该轮不计入fix_rounds，必须重新执行该轮
-9. Code Review 完成后，执行执行计划片段（输入 #4）中 `orchestration_points.post-review` 插槽条目：
-   - `type=reference` → Read 条目 `file` 字段指令文件并执行
-   - `type=skill` → 调用条目 `skill` 字段指定 skill（`run_mode=subagent` 时 spawn 独立子代理）
-   - 插槽为空 → 跳过，不加载任何指令文件
-
-当前变更：{change_name}
-项目根目录：{project_root}
-仓目录：{repo_path}
-
-返回格式（必须包含修复过程记录）：
-- 全部通过：status=PASSED, findings=[...], fix_rounds=0, changed_files=[...]
-- 自动修复成功：status=FIXED, fixes_summary=[{round, errors_found, errors_fixed, code_changes_made}], fix_rounds=N, changed_files=[...]
-- 需要用户决策：status=ESCALATE, blocking_issues=[{id, description, severity, attempted_fixes}], fix_rounds=3, changed_files=[...]
+{
+  "python": [
+    "华为 CleanCode Python 核心原则/核心设计原则/可读性与可维护性",
+    "华为 CleanCode Python 核心原则/核心设计原则/安全性与防御式编程",
+    "华为 CleanCode Python 核心原则/规则级别",
+    "云核心网产品工程与IT装备部Python规范/编码风格/命名规则"
+  ],
+  "cpp": [
+    "华为 CleanCode C++ 核心原则/架构与模块设计",
+    "华为 CleanCode C++ 编码规范/格式与排版"
+  ]
+}
 ```
 
-### 2. 汇总所有子代理结果，处理ESCALATE升级
+假设当前需求仅涉及 Python，则筛选结果可以是：
+```json
+{
+  "python": [
+    "云核心网产品工程与IT装备部Python规范/编码风格/命名规则"
+  ]
+}
+```
+不得选择：
 
-- 子代理返回ESCALATE → 升级到用户决策（对齐通用规则"用户决策升级机制"：fix_rounds = 3 → 已尽力修复仍无法解决，升级；fix_rounds < 3 → 子代理逻辑异常，记录WARNING但仍升级，**禁止主会话重新启动子代理执行修复**）
-- **【强制】禁止主会话将子代理返回的问题"记录后继续"**
+```
+    "华为 CleanCode Python 核心原则/核心设计原则/可读性与可维护性",
+    "华为 CleanCode Python 核心原则/核心设计原则/安全性与防御式编程",
+```
 
-### 3. 阶段间同步
+因为这些目录与当前 Apply 阶段的代码实现检查相关性底。
 
-- **所有仓Code Review通过后才进入M-5**
+11.1.2 **获取具体规范内容**
+将 3.0.1 步骤筛选出的目录，以json格式，按照语言分别传递给 `code-rule-content` skill，获取对应规范内容。
 
-**Output**: 各仓Code Review报告（PASSED/FIXED/ESCALATE + 用户决策记录）
-**Checkpoint**: 所有涉及仓的Code Review已完成
+Invoke `code-rule-content` skill:
+
+输入必须保持多语言独立，例如：
+```json
+{
+  "python": [
+    "云核心网产品工程与IT装备部Python规范/编码风格/命名规则"
+  ],
+  "cpp": [
+      "华为 CleanCode C++ 编码规范/格式与排版"
+  ]
+}
+```
+
+**【强制要求】**
+
+- 每种语言只传递该语言对应的目录。
+- 不得将 Python、Java、C++ 等不同语言目录混合传递。
+- 不得传递空目录、缩写目录或自行推测的目录。
+- 必须使用 3.0.1 返回的目录名称。
+
+`code-rule-content` 返回结果统一按语言组织，例如：
+```json
+{
+  "python": "### 可读性与可维护性\n- 使用具有明确含义的标识符\n- 公共函数必须编写 Docstring\n",
+  "cpp": "### 特殊成员函数\n- 类成员变量必须显式初始化\n- 单参数构造函数声明为 explicit\n # Cpp规范"
+}
+```
+Agent 必须统一理解为：
+> 当前需求的**语言级 Apply 规范集合（`language-specific Apply specifications`）**。
+
+后续代码规范检查过程中以这里的输出作为检视标准。
+
+#### 11.2 规范检查（所有语言）
+
+调用 `codecheck-for-cleancode` 技能进行编码规范检查与修复。
+
+**必须先检查 CodeCheckCLI 是否已安装**：在执行任何规范检查操作之前，**必须**先执行 `codecheck --version` 验证安装状态。如果命令执行失败（返回非0或提示"不是内部或外部命令"），**必须立即按照 `codecheck-for-cleancode` 技能的"兜底策略（自动安装）"章节执行安装**，包括：检测 Node.js → 配置 npm 仓库 → 安装 CodeCheckCLI → 验证安装。**严禁在未安装 CodeCheckCLI 的情况下跳过规范检查**，安装失败则分析安装失败的原因（如网络问题、Node.js 版本不兼容、npm 仓库不可达等）并反馈用户。
+
+**检查范围**：使用代码生成任务中涉及的变更文件，通过 `--files` 参数传入。
+
+**规范检查流程**:
+1. **规范内容加载与预处理** (`11.1 规范加载`)
+- 从 `docs/rule_index.md` 读取规范目录树
+- 根据当前需求的编程语言，筛选 Apply 阶段相关的规范目录
+- 调用 `code-rule-content` skill 获取具体规范内容
+- 将获取的规范内容作为 检视标准 传递给后续检查流程
+
+2. **pre-ai-fix 阶段** (`11.2 规范检查`)
+   - 收集代码生成任务中变更的文件列表
+   - 调用 `codecheck-for-cleancode` 技能的增量检查+修复流程（参考 `assets/increcheck-fix.md`）
+   - 执行 pre-ai-fix：
+     ```bash
+     python scripts/increcheck_and_fix_workflow.py --working-dir <project_root> --files <变更文件列表> --phase pre --check-type incre
+     ```
+   - 读取 `.codecheckcli/codecheck-result.json` 判断是否有告警：
+     - **无告警**: 标记 11.2 完成，进入下一环节（C/C++/Java/Python/Go 进入 11.3 内存安全检查，其他语言完成 Code Review 进入单元测试环节）
+     - **有告警**: 进入 AI 修复
+
+3. **AI 修复**（基于规范内容检视 + 修改)
+   - 参考 `codecheck-for-cleancode` 技能的 `assets/ai-fix.md` 执行 AI 修复
+   - 主要步骤：黑名单过滤 → 报告拆分 → 并行 AI 修复子 Agent → 验证
+
+   - 检视阶段：
+     - 将 11.1 加载的规范内容作为检视依据
+     - 逐条对照规范内容，检查变更文件中的代码是否符合规范
+     - 识别不符合规范的代码位置和具体问题
+     - 生成问题清单（包括：违规位置、违反的规范条目、建议修改方案）
+   - 修改阶段:
+     - 参考 `codecheck-for-cleancode` 技能的 `assets/ai-fix.md` 执行 AI 修复
+     - 主要步骤：黑名单过滤 → 报告拆分 → 并行 AI 修复子 Agent → 验证
+
+4. **post-ai-fix 阶段**（AI 修复后执行）
+   - 执行 post-ai-fix：
+     ```bash
+     python scripts/increcheck_and_fix_workflow.py --working-dir <project_root> --files <变更文件列表> --phase post --check-type incre
+     ```
+   - 生成最终 HTML 报告
+   - 对照 11.1 的规范内容进行最终复核，确保所有规范条目已落实
+
+**规范检查结果处理**：
+- **无告警**: 删除中间文件（`.codecheckcli/` 目录等），标记 11.2 完成
+- **有告警**: 进入 AI 修复，修复后重新检查，循环直到告警清零。完成后删除所有中间文件，标记 11.2 完成
+
+#### 11.3 内存安全检查（C/C++、Java、Python、Go）
+
+> 调用 `cwd-audit` 技能检测内存安全和资源管理问题，检测出问题后直接修复（所有语言）
+
+1. **检测** (`11.3 内存安全检查`)
+   - 调用 `cwd-audit` 技能检测代码
+   - 读取检测结果判断是否有问题：
+     - **无问题**: 删除中间检测报告，标记 11.3 完成，进入单元测试环节
+     - **有问题**: 根据检测报告直接修复代码，修复后重新调用 `cwd-audit` 检测验证，循环直到无问题或达到最大次数（3次）。全部修复则内存安全检查完成，3次后仍有问题则标记 blocked 返回主会话由主会话上报用户
+   - **必须删除中间过程产生的检测报告**
+
+**主会话后处理**（子代理返回后执行）：
+- 子代理返回 Code Review 完成 → 进入单元测试环节
+- 子代理返回 blocked → 主会话上报用户处理
+- 子代理执行失败 → 主会话直接执行 Code Review（降级策略）
