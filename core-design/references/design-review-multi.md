@@ -95,3 +95,7 @@
 ## 关闭语义
 
 **执行计划不含 `design_review` 条目时**：跳过 M-3b 全段，各仓 design-doc-reviewer 审查无人执行。M-3a 通过后（如 `design_traceability` 开启）或 M-2 完成后（如 `design_traceability` 也关闭）直接进入 cleanup。
+
+## 新增 artifact 审查范围说明（多仓）
+
+多仓模式下 design-doc-reviewer 同样在 Stage 1 通过 `load_schema('spec-driven')` 动态发现本环节所有产物（DAG 分层过滤：`requires` 含 `delta_design` 或更下游 artifact），各仓子代理审查时将该仓产物 + 非内置 artifact 一并纳入审查范围。新增 artifact 不再单独配置审查步骤，由 M-3b 一次性覆盖。
