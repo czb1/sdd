@@ -105,7 +105,7 @@
 
 - Glob 列出变更目录文件清单，确认无 downloads/ 目录、无 expert_experience.md
 - Glob 验证 `**/downloads/*` 返回空
-- 确认保留文件存在：proposal.md、delta_spec.md、delta_design.md、tasks.md、delta_test_design.md
+- 确认保留文件存在：proposal.md、delta_spec.md、delta_design.md、tasks.md、delta_test_design.md、.templates/resolved/（M3/M5b 物化模板，GATE:REF 依赖）
 
 ### 8. 执行时机
 
