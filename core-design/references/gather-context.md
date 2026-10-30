@@ -31,7 +31,7 @@ Read `language-specific design specifications` resolved in Step 3 - Design stage
 | P0 | 项目级 spec.md | `docs/specs/spec.md` | 了解全局规格，全局功能划分，与其他模块的关系 |
 | P0 | 项目级 design.md | `docs/specs/design.md` | 了解全局架构、技术选型、模块依赖关系 |
 | P0 | 多仓库依赖关系 | `docs/relationship.md` | 了解各子仓库间的依赖关系和调用链（由 core-init 生成） |
-| P0 | 多仓环境说明 | `proposal.md` 第6节 | 校验 explore 阶段确认的仓库范围、实现顺序、接口契约 |
+| P0 | 多仓环境说明 | `proposal.md` 多仓环境说明章节（存在性校验，不固定章节号） | 校验 explore 阶段确认的仓库范围、实现顺序、接口契约 |
 | P1 | 相关模块级 design.md | `docs/specs/<module-name>/design.md` | 了解受影响模块的设计细节 |
 | P1 | 相关模块级 spec.md | `docs/specs/<module-name>/spec.md` | 了解受影响模块的接口和约束 |
 
