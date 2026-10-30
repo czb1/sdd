@@ -1,6 +1,6 @@
 ---
 name: core-design
-description: Design document generation - reads delta_spec.md from explore phase from docs, fetch rule lists and request for relevant rules, generates design artifacts based on schema definitions with expert experience integration and task-level Skill discovery through 云见 CLI
+description: Design document generation - reads delta_spec.md from explore phase from docs, fetch rule lists and request for relevant rules, generates design artifacts based on schema definitions with expert experience integration and optional task-level Skill consumption (disabled by default)
 license: MIT
 compatibility: Works without npm - uses Python scripts with schema-driven generation
 metadata:
@@ -13,55 +13,12 @@ Design document generation for a change.
 
 **Note**: This skill generates ONLY design-phase artifacts. The proposal and delta_spec are generated in the explore phase.
 
-## Skill 与经验消费规则
-
-### 能力判断与候选查找
-
-以当前任务目标、代码仓和上下文为输入，由 Agent 自主判断需要业务相关能力还是通用能力；需要两类能力时分别选择对应路径。SDD 只针对 tasks.md 的 1.x 代码生成任务，结合任务描述和「编程语言」匹配候选。
-
-| 能力类型 | 查找与选择 |
-|---|---|
-| 业务相关 | 结合 git remote、仓库根目录名、.codeagent/product.json 解析产品名 → 通过云见 CLI 获取产品场景 → 按任务描述与编程语言语义匹配场景（可多选）→ 获取命中场景的 Skill 名称及描述 |
-| 业务路径未命中 | 产品无法定位、场景无法匹配或场景无合适 Skill 时，通过云见 CLI 分别检索最多 **3 个 Skill 候选**和经验引擎中最多 **3 条经验候选**，综合判断 Skill、经验或两者组合 |
-| 通用能力 | 跳过产品和场景链路，直接通过云见 CLI 检索通用 Skill |
-
-产品名无法可靠解析或来源有冲突时，向用户询问产品名，允许跳过；跳过后按业务未命中路径处理，不反复追问。为每个任务预判最多 Top3 Skill，给出一句话匹配理由及 Agent 首选；不足时按实际数量处理，不强行凑数。场景已有合适 Skill 或当前只需要通用能力时，不自动追加业务兜底的经验检索。一侧检索失败时仍可判断另一侧已返回的候选，但服务错误不能报告为确定无结果。
-
-### 批量确认（候选准备后、下载前）
-
-- 按任务组聚合候选，一次 AskUserQuestion（或当前环境等价交互工具）批量展示，不逐任务弹窗。展示任务编号、编程语言、候选名称 / 描述、匹配理由，并对每个首选标注 **✓ 推荐**；有经验候选时一起展示拟采用内容。
-- 支持用户在同一次回答中按任务或任务组指定 Skill / 不使用；固定附加 **全部由 Agent 决定** 和 **本次不使用外部 Skill** 两个选项。
-- 同一次回答的优先级为：全局「本次不使用外部 Skill」最高，其次逐任务指定，再次任务组指定，最后默认首选。某任务明确选择不使用时不得回退成推荐项，也不得通过新获取经验绕过。选择「全部由 Agent 决定」时采用首选；选择「本次不使用外部 Skill」时，本轮展示范围内的任务均不下载或使用外部 Skill，也不通过经验兜底绕过该选择。
-- 用户跳过、提交但未选，或交互工具明确结束并返回无答案时，静默采用仍有合适候选任务的 Agent 首选；部分任务未指定时仅对这些任务采用首选。正在等待的提问不能仅凭时间流逝判为无响应；工具故障不能冒充用户跳过。
-- 用户指定名称或明确确认推荐项记为「用户指定」；选择「全部由 Agent 决定」、跳过 / 未选或交互返回无答案后采用首选，记为「Agent 自选」。最终输出列明哪些任务由用户指定、哪些是 **Agent 自选**，以及哪些不使用或获取失败。无合适候选时继续原任务，不虚构首选。
-- 以上默认规则只用于能力候选选择，不覆盖执行计划确认本身的空应答规则。单仓由主会话统一确认；多仓子代理只准备候选，由主会话汇总各仓任务组后统一提问并分发锁定结果，禁止子代理各自弹窗。
-
-### CLI 接入、去重与项目级落地
-
-- 所有产品、场景、Skill 与经验的查找和获取统一通过云见 CLI 完成。读取实际可用的云见 CLI Skill / 操作指引及帮助信息，不编造命令、参数、接口或标识。scenes(product)、skills(scene)、download(skill_name) 是 Registry 的逻辑能力，经 CLI 调用，不另建绕开 CLI 的 HTTP 获取路径。
-- 云见 CLI Skill 提供操作指引，业务 / 通用 Skill 提供任务实际使用的能力，二者不要混淆。其他场景先安装并读取云见 CLI Skill；已安装时直接读取。
-- CLI、操作指引、身份、安装入口或服务不可用时，说明本次未获取到能力，继续原任务。交互工具故障时说明无法完成候选确认，本轮不新增下载；已有明确锁定的关联仍可使用。
-- 确认或默认选择锁定后，扫描已选集合，**按 skill name 去重**；同一名称下载一次，多个任务共同引用。多仓可复用下载包，但分别安装到所属仓项目目录；候选及确认结果仅暂存在主会话上下文，不另建索引。
-- Skill 包先解压到临时目录，校验名称、内容可读性及解压路径未越界，再原子替换项目级 **.codeagent/skills/<name>/**。本轮明确获取的同名 Skill 可以替换；只替换该名称目录，不改动其他 Skill 或相邻目录。
-- 下载、校验或原子替换失败时保留原同名目录，不将半成品当作成功结果；只有验证旧内容仍适用时才继续使用旧内容并如实说明。经验按项目已有约定保存到项目级目录；单项失败不阻断其余成功内容或原任务。
-
-### tasks.md 回写与后续消费
-
-- **SDD 场景**：落地成功后回写对应任务的 **Skill 字段**，记录实际锁定名称、可读本地路径及选择来源（用户指定 / Agent 自选）；经验按任务已有描述约定关联。保留任务编号、checkbox、设计锚点及测试策略。
-- 用户明确不使用时，将 Skill 字段写为「不使用（用户选择）」；无候选或获取失败时如实注明，不能将未成功落地的内容写成可用关联。明确不使用是有效决策，不能被当成缺少关联而自动重新检索。
-- **其他场景**：直接用于当前任务，不修改 tasks.md，即使项目中已有该文件。
-- tasks.md 是 SDD 任务及其能力关联的唯一数据源；下载文件只承载能力内容，不新增任务能力索引。
-- 执行已有 SDD 任务时先读 Skill 字段及本地实际内容，复用已锁定的内容，不重复确认。只有确需新增 / 改选 Skill 时，才在任务循环前汇总受影响任务，执行一次批量确认；单纯补下已锁定的同名 Skill 无须再次选型。循环中才发现新增 / 改选需求时，先收集并预检其余待办任务，返回主会话的批量准备阶段统一处理，不逐任务临时弹窗；已有可用关联的任务可以继续。用户明确不使用的任务保持该决定，除非用户更改。
-- 多仓以任务所属代码仓定位产品，内容落到该仓 .codeagent/skills，关联写入该仓 tasks.md；各仓执行者自行读取上下文，不在根项目另建汇总索引或修改其他仓任务。
-- 没有本轮明确获取或更新决定时不自动覆盖项目本地内容；清理时保留任务仍引用的 Skill 与经验。
-- 最终简要报告查找、选择来源、安装及 tasks.md 同步结果。获取失败不阻断原任务，同步未成功时不得宣称完成。
-
 ## Input
 
 - Change name (kebab-case)
 - `docs/relationship.md` - 多仓库依赖关系，理解设计涉及的跨仓库调用链
 - Optional: `--step` for step mode, `--quick` for quick mode
-- Optional: `--query` for task capability search keywords
+- Optional: `--query` for task capability search keywords (only when `skill_consumption` is enabled)
 
 ## Execution Method
 
@@ -299,7 +256,7 @@ AskUserQuestion({
 ### Phase 7: Prepare Existing Experience Context [可配置: expert_experience]
 
 > 本步骤为可配置步骤。执行与否以构建执行计划持久化的 execution-plan-core-design.json 为准：
-> - **执行计划 steps 数组含 `config_key=expert_experience`（type=built_in）条目** → 从该条目 `ref_file.single` 字段取指令文件（动态路径解析参见本SKILL Reference文件路径解析章节）并 Read，按其中指令执行（准备已有的项目级设计经验与后续云见 CLI 查找上下文）
+> - **执行计划 steps 数组含 `config_key=expert_experience`（type=built_in）条目** → 从该条目 `ref_file.single` 字段取指令文件（动态路径解析参见本SKILL Reference文件路径解析章节）并 Read，按其中指令执行（准备已有的项目级设计经验）
 > - **执行计划不含本步骤** → 直接进入 Phase 8（指令文件不加载，内容不进上下文）
 >
 > **执行位置**：Phase 6（读取 brainstorming design.md）之后、Phase 8（生成设计文档）之前执行。
@@ -329,11 +286,16 @@ AskUserQuestion({
 
 **多仓模式**：本 Phase 的单仓文档生成由 M-2 替代；Phase 9~11 仍正常执行。
 
-### 任务形成后：查找与关联 Skill / 经验（单仓和多仓均执行）
+### post-generate：任务 Skill 消费 [可配置: skill_consumption]（默认关闭）
 
-在 Phase 8 或多仓 M-2 中先形成任务，再按本 Skill 的「Skill 与经验消费规则」执行 SDD 路径：Agent 按任务判断业务 / 通用能力，通过云见 CLI 准备候选，按任务组批量请用户确认，再按名称去重下载、原子替换 .codeagent/skills/<name>/，最后回写该任务的 Skill 字段。根据实际选用内容完善相关设计，再进入 Phase 9 / M-3a。
+> 仅当执行计划 `execution-plan-core-design.json` 的 `orchestration_points.post-generate` 含 `key=skill_consumption` 的 reference 条目时执行；未配置、已注释或计划中无该条目时跳过，不加载消费指令。单仓 Phase 8 / 多仓 M-2 全部完成后，由主会话在该插槽执行一次，再进入 Phase 9。
 
-本动作属于任务生成流程，不受 `expert_experience` 或自定义编排点开关控制；该开关仅控制 Phase 7 的已有设计经验准备。完整确认、去重及回写步骤见 references/tasks-md-guidance.md。多仓执行者读取本 Skill 的消费规则并返回候选，由主会话汇总确认后按锁定结果更新本仓；未匹配或获取失败时说明并继续原任务。
+<!-- GATE:REF references/skill-consumption.md -->
+**MANDATORY GATE（仅启用时）**：Read 本 SKILL 安装目录下的 `references/skill-consumption.md`；文件不存在时 MUST STOP。
+读取后输出: "GATE PASSED: references/skill-consumption.md loaded"。
+<!-- /GATE:REF -->
+
+**Execution**：完整执行指令见 `references/skill-consumption.md`；配置方式见 `../core-shared/references/skill-consumption-config.md`。
 
 ### Phase 9: 设计追溯验证（强制）[可配置: design_traceability]
 
@@ -405,7 +367,7 @@ The design-phase artifacts are defined in `core-schemas/spec-driven/schema.yaml`
 - Phase 5 (Similar Changes): ✓ (if references exist)
 - Phase 6 (Brainstorming Output): ✓ (if exists)
 - Phase 7 (Existing Experience Context): <已准备 / 无可复用经验 / 已关闭>
-- Phase 8 (Task Capabilities): <批量确认结果；用户指定 / Agent 自选 / 不使用；安装及 Skill 字段回写结果>
+- post-generate (skill_consumption): <已关闭（默认）/ 实际执行结果>
 - Phase 8 (Generate Artifacts): ✓ (已执行内容填充，已对照 design-principles.md + design-views.md)
 - Phase 9 (设计追溯验证): ✓ (cross-doc-checker L2/L3)
 - Phase 10 (design-doc-reviewer 审查): ✓
@@ -414,11 +376,6 @@ The design-phase artifacts are defined in `core-schemas/spec-driven/schema.yaml`
 - Rule content fetched in Step 3: ✓
 - Skill instructions extracted: ✓
 - Injected into delta_design.md: ✓
-
-### Task Capability Integration
-- Capability query derived from tasks: <实际结果>
-- Skill / experience fetched via 云见 CLI: <实际结果，允许未选用或失败>
-- tasks.md associations and design integration: <实际结果>
 
 ### Content Filling Status
 - delta_spec.md content referenced: ✓
@@ -433,9 +390,10 @@ Ready for implementation. Run /core-apply <change-name>
 - **Design phase only**: core-design does NOT generate proposal.md or delta_spec.md
 - **Schema-driven**: All artifact filenames and formats are defined in schema.yaml
 - **`language-specific design specifications` integration**: Automatically reads and injects these constraints fetched in step 3.
-- **Skill 与经验**: 任务形成后通过云见 CLI 查找候选，按任务组批量确认后获取并回写 tasks.md 的 Skill 字段；已有项目经验可辅助设计
+- **Skill 消费**：`skill_consumption` 默认关闭；仅按执行计划加载专属指令，不由 `expert_experience` 或 `--query` 隐式开启。
 - **Similar Changes**: Reads referenced similar changes for design patterns
 - **tasks.md NOT task.md**: The schema defines artifact ID `tasks` which generates `tasks.md` (plural)
 - **Checkbox format**: The schema requires checkbox format (`- [ ]`) for tasks
 - **Verification required**: Always verify generated artifacts match schema expectations
 - **Design anchors**: Use `anchor_extractor.py` to automatically extract design anchors for tasks from delta_design.md metadata
+

@@ -29,11 +29,9 @@ For each pending task in `## 代码生成任务` section:
 6. 标记任务完成: `- [ ]` → `- [x]`
 7. Continue to next task
 
-### 每任务前：读取或补齐能力上下文
+### 可选任务 Skill 消费 [可配置: skill_consumption]（默认关闭）
 
-进入任务循环前读取全部待办任务的 Skill 字段。明确「不使用（用户选择）」时保持决定；已有可用关联直接消费，缺失的同名锁定内容可按原决定补下。需要新增或改选 Skill 时，读取本 Skill 的消费规则，按任务组一次批量确认后按名称去重，下载、原子替换 .codeagent/skills/<name>/ 并回写 Skill 字段；不得在逐任务循环内反复弹窗。多仓由主会话在启动代码生成代理前统一处理。
-
-每个任务开始时读取锁定关联与本地实际内容，不把「不使用」当成缺少关联，不推翻用户选择。循环中才发现新增 / 改选需求时，先汇总并预检其余待办任务，再返回主会话批量准备阶段统一处理，子代理不自行提问。最终报告 Agent 自选任务；失败说明后继续原任务，不另建索引。该动作不依赖 pre-codegen 编排点是否配置。
+只检查执行计划 `orchestration_points.pre-codegen` 是否含 `key=skill_consumption` 的 reference 条目。有条目且存在待办 1.x 任务时，循环前 Read `references/skill-consumption.md` 执行批量准备；每任务在 9.3.5 同一条目中执行当前任务消费。无条目时不加载该文件、不读取关联能力内容、不查询或下载、不回写 Skill / 经验字段，直接执行代码生成流程。
 
 ### 9.1 代码理解
 
@@ -232,3 +230,4 @@ Working on task 1.1: explore-doc-reviewer Skill
 9. **Step 13 — 门控检查2 L5 UT覆盖度验证**: UT 生成完成后，**必须立即**执行UT与delta_test_design.md的覆盖度验证
 
 **编排点通用判断**（5 个插槽统一规则）：查 `docs/.flow_context/execution-plan-core-apply.json` 的 `orchestration_points` 对象中对应插槽（`pre-codegen`/`post-codegen`/`post-l4`/`post-review`/`post-ut`）数组是否有条目。有条目 → 按条目 `type` 执行（`reference`：Read `file` 字段指令文件并按其中指令执行；`skill`：调用 `skill` 字段指定的 skill，`run_mode=subagent` 时 spawn 独立子代理执行）；无条目 → 直接进入下一步，指令文件不加载。
+

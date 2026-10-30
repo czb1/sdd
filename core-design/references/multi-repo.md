@@ -19,6 +19,7 @@
   - **执行计划 steps 数组含该 `config_key` 条目** → 从条目 `ref_file.multi` 字段取指令文件（动态路径解析参见 SKILL.md Reference文件路径解析章节）并 Read，按其中指令执行；强制位（必经关卡/禁止主会话/最后阶段禁止跳过）随条目存在而生效
   - **执行计划不含该 `config_key` 条目** → 该 M 阶段/步骤跳过，**不 Read 指令文件**（内容不进上下文），直接进入下一 M 阶段；强制位（必经关卡/禁止主会话/最后阶段禁止跳过）随条目缺失而豁免
 - **无 M 映射的主会话可配置步骤**（与单仓同一机制、同一执行计划条目，`ref_file` 为单多仓通用文件）：`version_check`（M-1 之前执行）/ `fetch_rules`（M-1 之前执行，B 档双层语义：仅控 code-rule 拉取，GATE 不受控）/ `read_similar`（M-2 之前执行）/ `expert_experience`（M-2 之前执行）。存在性判断同单仓
+- **任务 Skill 消费 [可配置: skill_consumption]（默认关闭）**：仅 `post-generate` 含该 reference 条目时执行；无条目时不加载消费指令，不检索、下载或回写。与 `expert_experience` 独立。
 - **编排点插槽**（`orchestration_points` 对象）：`post-rule-fetch` / `post-gather-context` / `post-code-understanding` / `pre-generate` / `post-generate` / `post-traceability` / `post-design-review` / `post-cleanup`
   - **对应插槽数组含条目** → 按条目 `type` 执行（`reference`：Read `file` 字段指令文件并执行；`skill`：调用 `skill` 字段指定 skill，`run_mode=subagent` 时 spawn 独立子代理）
   - **对应插槽数组为空** → 跳过，指令文件不加载，直接进入下一阶段
@@ -35,6 +36,7 @@
 | fetch-rules（B 档） | `fetch_rules` | 无强制位；Phase 2 code-rule 拉取跳过，**GATE（design-principles/design-views）不受开关控制**，仍无条件加载 |
 | read-similar | `read_similar` | 无强制位；Phase 4 后直接进入 Phase 6 |
 | expert-experience | `expert_experience` | 无强制位；Phase 6 后直接进入 Phase 8 |
+| post-generate 任务 Skill 消费 | `skill_consumption`（reference，默认关闭） | 该条目缺失时，候选准备、统一确认、下载与回写均豁免；M-2 核心产物生成仍执行，其他编排条目照常执行 |
 
 ## M-1: 多仓检测
 **Replaces**: steps.md Step 3 gather-context 中的多仓检测部分
@@ -68,7 +70,16 @@
 
 **Execution**: 完整执行指令（读取 involved_repos、brainstorming design.md 读取、impl_questions 逐条确认、子代理任务描述模板含 10 行输入文件表、并发上限 3 分批启动、容错机制、多仓文档读取确认、跨仓归档引用解析）见 **references/m2-multi.md**（本 M 阶段唯一执行权威）。
 
-**任务能力关联**：各仓在 M-2 任务形成后执行本 Skill 的消费规则并返回候选；主会话按任务组一次批量确认后，将锁定结果分发各仓，去重获取并原子替换本仓 Skill，回写本仓 tasks.md 的 Skill 字段；查找失败不阻断原流程，详见 m2-multi.md。
+### M-2 后：任务 Skill 消费 [可配置: skill_consumption]（默认关闭）
+
+> 仅当执行计划 `execution-plan-core-design.json` 的 `orchestration_points.post-generate` 含 `key=skill_consumption` 的 reference 条目时执行；未配置、已注释或计划中无该条目时跳过，不加载消费指令。复用 SKILL.md 中同一个 post-generate 调度入口，由主会话执行一次，禁止在 M-2 子代理中提前或重复执行。
+
+<!-- GATE:REF references/skill-consumption.md -->
+**MANDATORY GATE（仅启用时）**：Read 本 SKILL 安装目录下的 `references/skill-consumption.md`；文件不存在时 MUST STOP。
+读取后输出: "GATE PASSED: references/skill-consumption.md loaded"。
+<!-- /GATE:REF -->
+
+**Execution**：完整执行指令见 `references/skill-consumption.md`；配置方式见 `../core-shared/references/skill-consumption-config.md`。
 
 **Output**: 各涉及仓的 `delta_design.md`、`tasks.md`、`delta_test_design.md` + 新增 artifact（T5.6 委托，详见 `references/m2-multi.md` 步骤 7）
 **Checkpoint**: 所有涉及仓的设计文档已生成 + 多仓文档读取确认已输出 + impl_questions用户确认已完成
@@ -180,3 +191,4 @@ d. **决策结果记录**：记录用户决策到变更目录的审查报告中
 |------|------|-----------|----------|
 | M-2 按仓生成 | 设计阶段发现新接口，追加contract | -> `proposed` | 刷新definition_repo和consumer_repos的副本 |
 | M-2 按仓生成 | 设计完成，接口确认 | `proposed` -> `confirmed` | 刷新涉及仓副本 |
+

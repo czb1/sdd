@@ -95,7 +95,7 @@
 
 ## 8.4 tasks.md 结构 + 8.5 设计锚点提取
 
-必须读取 **references/tasks-md-guidance.md**（tasks.md 结构指导、任务形成后的云见 CLI 能力查找与关联、锚点格式规范及提取示例），在生成任务后先准备候选并按任务组批量确认，再去重下载、原子替换项目级 Skill 并回写 tasks.md 的 Skill 字段。此动作不受 expert_experience 开关控制。
+必须读取 **references/tasks-md-guidance.md**（tasks.md 结构指导、锚点格式规范及提取示例）。本阶段只生成任务；Skill 消费由 Phase 8 全部完成后的 `post-generate` 编排点按执行计划调度，`skill_consumption` 默认关闭，不能因读取结构指导而触发。
 
 ## Artifact Generation Scripts
 
@@ -133,7 +133,7 @@ result = subprocess.run([sys.executable, config_dir / 'skills' / 'core-design' /
 sys.exit(result.returncode)
 "
 
-# --query 如有提供，由 Agent 用作任务形成后的云见 CLI 查找关键词参考。
+# --query 仅在执行计划启用 skill_consumption 时作为查找关键词参考，不会自动开启该步骤。
 # 不通过旧生成脚本触发独立经验获取。
 ```
 
@@ -148,7 +148,7 @@ For each artifact to generate:
 - Read context files (delta_spec.md, `language-specific design specifications`, similar changes, Phase 7 expert experience context)
 - Generate artifact with references to context
 - Ensure `language-specific design specifications` skill usage instructions are included in delta_design.md
-- When applicable, integrate actually available experience into design decisions; after tasks are formed, follow this Skill’s consumption rules for CLI discovery and task associations
+- Integrate existing design experience when applicable; additional task capability discovery and associations run only through the enabled post-generate skill_consumption entry.
 - **CRITICAL: Fill template placeholders with actual content before writing**
 ```
 
@@ -189,3 +189,4 @@ For each artifact to generate:
 - **命令参考**：`core-shared/references/template-commands.md`（T3.1~T3.4 子命令的参数、产出、约束，用户主动需要时 Read 该文件执行）
 - **T3.2 `resolve --materialize`**：已在 §8.6 物化 GATE 中执行（本文件），多仓见 `references/m2-multi.md` 步骤 4
 - **T3.1 `init` / T3.3 `validate` / T3.4 `remove` / `rename`**：用户主动调用时 Read `core-shared/references/template-commands.md` 执行
+

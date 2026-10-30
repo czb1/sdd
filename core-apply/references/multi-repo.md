@@ -16,7 +16,14 @@
 - **编排点插槽**（`orchestration_points` 对象）：`pre-codegen`（M-2 子代理内 task 级）/ `post-codegen`（M-2 后）/ `post-l4`（M-3 后）/ `post-review`（M-4 后）/ `post-ut`（M-5 后）
   - **对应插槽数组含条目** → 按条目 `type` 执行（`reference`：Read `file` 字段指令文件并执行；`skill`：调用 `skill` 字段指定 skill，`run_mode=subagent` 时 spawn 独立子代理）
   - **对应插槽数组为空** → 跳过，指令文件不加载，直接进入下一阶段
+- **任务 Skill 消费 [可配置: skill_consumption]（默认关闭）**：仅根执行计划及下发片段的 `pre-codegen` 含该 reference 条目时执行；无条目时不加载消费指令，准备、确认、下载、读取关联内容与回写均跳过；其他 pre-codegen 条目不受影响。
 - **`skipped-core-apply.json` 只读**：Step 14 on-completion 展示可配置步骤状态时读取；agent 全程不写
+
+## Skill 消费强制位豁免
+
+| 阶段 | 可配置键 | 关闭时行为 |
+|---|---|---|
+| M-2 循环前准备 / task 级消费 | `skill_consumption`（reference，默认关闭） | 不加载消费指令，不执行候选准备、确认、下载、关联读取与回写；M-2 核心代码生成及其他编排条目照常执行 |
 
 ## Prerequisites
 1. repo_assignments.json 存在
@@ -66,7 +73,16 @@
    - 调用 `parse_cross_repo_dependencies(tasks_content)` 解析跨仓依赖字段
    - 无效仓引用（不在involved_repos中）输出WARNING并忽略该依赖
    - **【强制】循环对象边界**：M-2 代码生成循环对象**仅限**各仓 tasks.md `## 代码生成任务` 章节（1.x）。`## Code Review 任务`（2.x）属 M-4（`code_review`）、`## 单元测试任务`（3.x）属 M-5（`unit_test`）——执行计划 steps 数组不含对应 `config_key` 条目（M 关闭）时整章节跳过，**禁止**在 M-2 代码生成循环中执行；1.x 全部 `- [x]` 无待办时直接结束 M-2（进入 post-codegen 编排点判断），不得将 2.x/3.x 作为 M-2 循环对象
-**代码生成代理启动前的能力准备**：主会话读取各仓待办任务 Skill 字段与本地内容，保留用户明确不使用的决定。仅对新增 / 改选需求准备候选，汇总各仓任务组一次批量确认，再按名称去重获取、原子替换各仓 .codeagent/skills/<name>/ 并回写 Skill 字段；将已锁定结果交给各仓代理，禁止代理各自弹窗。已有确认结果直接复用，无待办或无待选任务时不发起空确认。
+### 代码生成代理启动前：任务 Skill 消费准备 [可配置: skill_consumption]（默认关闭）
+
+> 仅当执行计划 `execution-plan-core-apply.json` 的 `orchestration_points.pre-codegen` 含 `key=skill_consumption` 的 reference 条目时执行；未配置、已注释或计划中无该条目时跳过，不加载消费指令。仅启用且存在待办 1.x 任务时，由主会话按专属指令完成准备，再启动代码生成代理。
+
+<!-- GATE:REF references/skill-consumption.md -->
+**MANDATORY GATE（仅启用时）**：Read 本 SKILL 安装目录下的 `references/skill-consumption.md`；文件不存在时 MUST STOP。
+读取后输出: "GATE PASSED: references/skill-consumption.md loaded"。
+<!-- /GATE:REF -->
+
+**Execution**：完整执行指令见 `references/skill-consumption.md`；配置方式见 `../core-shared/references/skill-consumption-config.md`。
 
 6. **【强制】使用子代理并行执行各仓代码生成**（禁止在主会话中逐仓顺序执行）：
 
@@ -77,7 +93,7 @@
    读取后输出: "GATE PASSED: references/multi-codegen-template.md loaded"。
    <!-- /GATE:REF -->
 
-   子代理任务描述模板：使用 `references/multi-codegen-template.md`（GATE 已加载）中的模板，将 `{repo}` / `{repo_path}` / `{change_name}` / `{project_root}` / `{skill_dir}` 占位符替换为实际值后作为子代理任务描述。**禁止改写模板中的输入文件表与执行步骤**——子代理按模板流程执行（步骤 c 内嵌 9.1~9.5 等价流程：读取任务能力关联并按需通过云见 CLI 补齐 → 代码理解 → 锚点解析 → P0/P1/P2 展示 → 原则自检 → 代码生成；模板内已含测试策略解析，tdd 时按红-绿循环执行）。
+   子代理任务描述模板：使用 `references/multi-codegen-template.md`（GATE 已加载）中的模板，将 `{repo}` / `{repo_path}` / `{change_name}` / `{project_root}` / `{skill_dir}` 占位符替换为实际值后作为子代理任务描述。**禁止改写模板中的输入文件表与执行步骤**——子代理按模板流程执行（步骤 c 内嵌 9.1~9.5 等价流程：代码理解 → 锚点解析 → P0/P1/P2 展示 → 按执行计划执行 pre-codegen（Skill 消费默认关闭）→ 原则自检 → 代码生成；模板内已含测试策略解析，tdd 时按红-绿循环执行）。
 
 7. 并发规则（对齐通用规则 subagent并行执行规则）：
    - **并发上限**：同时运行的子代理数量不得超过3个
@@ -205,3 +221,4 @@
 | 阶段 | 操作 | status转换 | 副本刷新 |
 |------|------|-----------|----------|
 | M-2 按仓路由 | 实现时修改接口（更新last_updated_at） | `confirmed` -> `confirmed` | 刷新涉及仓副本 |
+
