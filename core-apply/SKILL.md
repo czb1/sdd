@@ -5,7 +5,7 @@ license: MIT
 compatibility: Works without npm - uses Python scripts directly
 metadata:
   author: corespec
-  version: 1.3.1
+  version: 1.3.2
   generatedBy: "1.1.4"
 ---
 
@@ -128,6 +128,7 @@ sys.exit(result.returncode)
 
 - `"ok": false` → 配置校验/解析失败（`error` 或 `errors` 说明原因）→ **MUST STOP**，告知用户修正 `~/.corespec/flow-config.json` 后重试，禁止继续执行。`error` 含"解析失败"时是配置源损坏（如旧版写回遗留尾逗号）——框架已尝试自愈，若仍失败说明文件严重损坏，需用户手工修复（`flow-config.json.bak-*` 备份可回退）
 - `"ok": true` → 执行计划已持久化到 `docs/.flow_context/execution-plan-core-apply.json`，skipped 标记到 `docs/.flow_context/skipped-core-apply.json`。按 `config_missing` 与 `scenario` 决定确认动作：
+  - **`"template_initialized": true`**（首次自动初始化模板）→ 在执行总结中添加一行提示："已初始化可编辑的产物模板（如需自定义章节，编辑 `~/.corespec/` 下的模板文件，执行 `python -m core_templates --guide` 查看使用指南）。"——**仅首次出现时告知，`false` 时静默跳过**
 
 **首次运行（`config_missing: true`）——必须给用户配置机会**：
 
