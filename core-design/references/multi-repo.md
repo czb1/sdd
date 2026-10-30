@@ -23,6 +23,7 @@
   - **对应插槽数组含条目** → 按条目 `type` 执行（`reference`：Read `file` 字段指令文件并执行；`skill`：调用 `skill` 字段指定 skill，`run_mode=subagent` 时 spawn 独立子代理）
   - **对应插槽数组为空** → 跳过，指令文件不加载，直接进入下一阶段
   - **多仓触发点**（change 级聚合）：`post-gather-context`（M-1 完成后）/ `pre-generate`（M-2 启动前）/ `post-generate`（M-2 全部仓完成后）/ `post-traceability`（M-3a 全部仓完成后）/ `post-design-review`（M-3b 全部仓完成后）/ `post-cleanup`（cleanup 完成后）
+  - **新增 artifact 审查**：由 M-3b design-doc-reviewer 在 Stage 1 通过 `load_schema` 动态发现本环节产物（DAG 分层过滤 `requires` 含 `delta_design` 或更下游 artifact）一次性覆盖，不再设独立 `post-extra-review` 编排点
 
 ## 强制位豁免总表（M 关闭时）
 
@@ -46,7 +47,7 @@
 2. 多仓模式下，解析 `repo_assignments.json` 中的 `involved_repos`、`anchor_repos`、`expanded_repos`、`expansion_reason` 字段
 3. 读取 `docs/relationship.md` 获取子仓列表，确认与 `repo_assignments.json` 一致
 4. 多仓环境校验（对 explore 阶段的确认）：
-   - **仓库范围**：设计是否覆盖 proposal.md 第6节确认的所有涉及仓库
+   - **仓库范围**：设计是否覆盖 proposal.md 多仓环境说明章节确认的所有涉及仓库
    - **接口协调**：跨仓库接口设计与 proposal.md 中接口契约是否一致
    - **边界清晰**：tasks.md 中的任务是否按仓库边界清晰拆分
 **Output**: is_multi_repo 标志 + involved_repos 列表
@@ -69,7 +70,7 @@
 
 **任务能力关联**：各仓在 M-2 任务形成后执行本 Skill 的消费规则并返回候选；主会话按任务组一次批量确认后，将锁定结果分发各仓，去重获取并原子替换本仓 Skill，回写本仓 tasks.md 的 Skill 字段；查找失败不阻断原流程，详见 m2-multi.md。
 
-**Output**: 各涉及仓的 `delta_design.md`、`tasks.md`、`delta_test_design.md`
+**Output**: 各涉及仓的 `delta_design.md`、`tasks.md`、`delta_test_design.md` + 新增 artifact（T5.6 委托，详见 `references/m2-multi.md` 步骤 7）
 **Checkpoint**: 所有涉及仓的设计文档已生成 + 多仓文档读取确认已输出 + impl_questions用户确认已完成
 
 ## M-3: 各仓审查并行执行（subagent并行 + 用户决策升级）
