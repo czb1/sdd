@@ -62,3 +62,7 @@ Agent tool: subagent_type="general", prompt="执行 core-design Phase 10 design-
 ## 关闭语义
 
 **执行计划不含 `design_review` 条目时**：跳过 design-doc-reviewer 审查，六维检测/九条宪法无人把关。关闭语义 = "已有外部审查或用户明确放弃文档审查"。
+
+## 新增 artifact 审查范围说明
+
+design-doc-reviewer 在 Stage 1 通过 `load_schema('spec-driven')` 动态发现本环节所有产物（DAG 分层过滤：`requires` 含 `delta_design` 或更下游 artifact），统一纳入审查范围——内置 delta_design / delta_test_design / tasks + 符合条件的非内置 artifact（如 data_design requires:[delta_design]）。新增 artifact 不再单独配置审查步骤，由 design_review 一次性覆盖。
