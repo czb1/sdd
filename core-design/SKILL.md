@@ -136,6 +136,7 @@ sys.exit(result.returncode)
 
 - `"ok": false` → 配置校验/解析失败（`error` 或 `errors` 说明原因）→ **MUST STOP**，告知用户修正 `~/.corespec/flow-config.json` 后重试，禁止继续执行。
 - `"ok": true` → 执行计划已持久化到 `docs/.flow_context/execution-plan-core-design.json`，skipped 标记到 `docs/.flow_context/skipped-core-design.json`。按 `config_missing` 与 `scenario` 决定确认动作：
+  - **`"template_initialized": true`**（首次自动初始化模板）→ 在执行总结中添加一行提示："已初始化可编辑的产物模板（如需自定义章节，编辑 `~/.corespec/` 下的模板文件，执行 `python -m core_templates --guide` 查看使用指南）。"——**仅首次出现时告知，`false` 时静默跳过**
 
 **首次运行（`config_missing: true`）——必须给用户配置机会**：
 
@@ -308,7 +309,7 @@ AskUserQuestion({
 **【多仓分支】**：
 - **单仓** → 继续本 Phase 的单仓生成流程（下方 GATE:REF）
 <!-- GATE:REF references/artifact-generation.md -->
-**MANDATORY GATE**: 单仓生成设计文档前必须先 Read 本SKILL所在目录下的 `references/artifact-generation.md`（Phase 8 完整执行指令：测试策略读取、参考文档读取、模板占位符填充、填充注意事项、生成脚本命令）。
+**MANDATORY GATE**: 单仓生成设计文档前必须先 Read 本SKILL所在目录下的 `references/artifact-generation.md`（Phase 8 完整执行指令：测试策略读取、参考文档读取、模板占位符填充、填充注意事项、生成脚本命令、模板物化 GATE、剩余 artifact 循环）。
 绝对路径 = config_dir / 'skills/core-design/references/artifact-generation.md'（动态路径解析参见本SKILL Reference文件路径解析章节）。
 文件不存在时 MUST STOP，禁止跳过。
 读取后输出: "GATE PASSED: references/artifact-generation.md loaded"。
@@ -316,7 +317,7 @@ AskUserQuestion({
 
 - **多仓** → 先执行 GATE 加载 multi-repo.md，再按 references/multi-repo.md M-2 执行（替代本 Phase 的单仓生成）
 <!-- GATE:REF references/multi-repo.md -->
-**MANDATORY GATE (仅多仓)**: 多仓环境必须先 Read 本SKILL所在目录下的 `references/multi-repo.md`。
+**MANDATORY GATE (仅多仓)**: 多仓环境必须先 Read 本SKILL所在目录下的 `references/multi-repo.md`（含 M-2 物化 GATE + 剩余 artifact 循环委托）。
 绝对路径 = config_dir / 'skills/core-design/references/multi-repo.md'（动态路径解析参见本SKILL Reference文件路径解析章节）。
 文件不存在时 MUST STOP，禁止降级为单仓执行。
 **【强制】如果Read工具返回文件不存在**：
