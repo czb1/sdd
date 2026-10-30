@@ -19,16 +19,15 @@
 
 ### 主流程
 
-1. **产品与场景（仅业务相关能力）**：结合 git remote、仓库根目录名、.codeagent/product.json 解析产品名；无法可靠解析时询问用户，允许跳过。通过云见 CLI 调用 Registry 的 scenes(product) 能力，读取 tasks.md 中任务描述和编程语言，语义匹配相关场景（可多选），再获取每个命中场景的 skills(scene) 名称和描述。通用能力跳过上述产品解析、产品询问和场景链路，直接检索 Skill。
-
-2. **准备候选**：每个 1.x 任务预判最多 Top3 Skill，给出名称、描述、一句话理由及首选。业务路径未命中时沿用最多 3 个 Skill / 3 条经验的兜底检索；通用能力直接检索 Skill。没有结果不凑数、不强选。
+1. **产品与场景（仅业务相关能力）**：按共享规则的「CLI 命令与字段传递」执行 `skill offering --http_url <URL>` 或 `--repo <本地目录>` → 取真实 `offering_id` 与 `offering_cn_name` → `skill product-scenes --dim_code <offering_id>` → 读取 tasks.md 的任务描述与编程语言，匹配返回的一级 / 二级场景 → 对每个命中场景调用 `skill scene-skills --first_scene <firstScene> --second_scene <secondScene> --dim_type "产品级" --dim_name <产品名>`。使用 `skill scenes --repo <本地目录>` 时复用其中已返回的产品和场景，不重复前两次查询。多产品有歧义时由主会话统一询问，允许跳过；通用能力直接走 `skill search`。
+2. **准备候选**：每个 1.x 任务预判最多 Top3 Skill，给出名称、描述、一句话理由及首选，保留实际返回的 ID / 版本供下载。业务路径未命中时沿用 `skill search` 最多 3 个 Skill / `experience search` 最多 3 条经验的兜底检索；通用能力只检索 Skill。没有结果不凑数、不强选，不以 `scene-search` 代替场景关联查询。
 3. **一次批量确认**：按任务组展示候选表，向用户发起一次 AskUserQuestion，允许在同一次回答中按任务 / 任务组指定 Skill 或不使用；不逐任务弹窗。候选选项标注「✓ 推荐」及理由，固定附加「全部由 Agent 决定」和「本次不使用外部 Skill」。拟采用的经验也随表展示。
 4. **锁定选择**：同一回答冲突时，全局不使用优先于逐任务指定，逐任务指定优先于任务组指定，最后才是默认首选。明确不使用不得回退到推荐项，也不得通过新获取经验绕过。「全部由 Agent 决定」或跳过 / 未选时采用合适的首选；交互工具结束并返回无答案时也按此默认规则处理，不将仍在等待的提问判作无响应。部分任务未指定时仅对这些任务采用默认值。最终输出再列明 Agent 自选任务，不追加逐任务确认。
-5. **按名称去重**：扫描本轮已锁定的 Skill 集合，按 skill name 去重后经云见 CLI download(skill_name)。多个任务引用同一名称只下载一次；候选和选择临时保存在会话中，不落独立索引。
+5. **按名称去重并按 ID 下载**：扫描本轮已锁定的 Skill 集合，按 skill name 去重后调用 `skill download --skill_id <真实ID> --user_id <调用方工号> --output <临时目录>`；版本已知时追加 `--version`，缺少 ID 时按共享规则定位同一个 Skill。多个任务引用同一名称只下载一次；候选和选择临时保存在会话中，不落独立索引。
 6. **项目级安装**：先解压到临时目录，校验名称、路径未越界和内容可读，再原子替换 .codeagent/skills/<name>/；只覆盖本轮锁定的同名 Skill，不动其他目录。失败保留旧目录，不安装半成品、不宣称新包成功可用。
 7. **回写任务**：成功后更新每个任务的 Skill 字段，记录实际名称、本地路径及选择来源。明确不使用也写回，以便 core-apply 尊重；无候选、获取失败则如实标注。最后报告选择来源、安装及回写结果。
 
-Registry 的 scenes / skills / download 表示现有接口能力，实际操作始终经云见 CLI，不将下图的逻辑名称当作未经验证的 CLI 命令，也不另建 HTTP 获取入口。CLI 或查询失败时按实际失败状态处理，继续原任务；不能把服务异常冒充无候选或用户跳过。
+命令参数、JSON-RPC 返回字段以及组合入口的复用规则以共享指令「CLI 命令与字段传递」为准。产品 ID 查询场景与场景查询 Skill 是两个独立环节。CLI 或查询失败时按实际失败状态处理，继续原任务；不能把服务异常冒充无候选或用户跳过。
 
 ### 时序
 
@@ -42,32 +41,48 @@ participant "Skill Registry" as API
 database ".codeagent/skills" as Local
 
 alt 业务相关能力
-  Agent -> Agent: 解析产品名\n(git remote / 根目录名 / product.json)
-  alt 产品名解析失败
-    Agent -> User: 询问产品名（可跳过）
+  alt 只有仓库 URL / 分步查询
+    Agent -> CLI: skill offering --http_url <URL>\n或 --repo <本地目录>
+    CLI -> API: 按仓库查产品
+    API --> CLI: offering_id / offering_cn_name
+    CLI --> Agent: result.products[]
+  else 本地仓组合入口
+    Agent -> CLI: skill scenes --repo <本地目录>
+    CLI -> API: 按仓库查产品，再按产品ID查场景
+    API --> CLI: 各产品及场景
+    CLI --> Agent: offering_id / product / scenes
   end
-  alt 产品已定位
-    Agent -> CLI: 获取产品场景
-    CLI -> API: scenes(product)
-    API --> CLI: 场景列表
-    CLI --> Agent: 场景列表
-    Agent -> Agent: 按任务描述和编程语言\n匹配场景（可多选）
-    loop 每个命中场景
-      Agent -> CLI: 获取场景 Skill
-      CLI -> API: skills(scene)
-      API --> CLI: name / description
-      CLI --> Agent: Skill 列表
+  alt 产品映射有歧义
+    Agent -> User: 确认相关产品（可跳过）
+  end
+  alt 产品 ID 与名称已定位
+    loop 每个相关产品
+      alt 已有组合入口返回的场景
+        Agent -> Agent: 复用 scenes，不重复查询
+      else 分步入口仅取得产品
+        Agent -> CLI: skill product-scenes --dim_code <offering_id>
+        CLI -> API: 按产品ID查场景
+        API --> CLI: firstScene / secondScene
+        CLI --> Agent: result.scenes[]
+      end
+      Agent -> Agent: 按任务描述和编程语言\n匹配场景（可多选）
+      loop 每个命中场景
+        Agent -> CLI: skill scene-skills\n--first_scene <firstScene> --second_scene <secondScene>\n--dim_type 产品级 --dim_name <产品名>
+        CLI -> API: 按场景与产品维度查 Skill
+        API --> CLI: name / description
+        CLI --> Agent: result.skills（保留实际ID / 版本）
+      end
     end
     alt 未匹配到适用 Skill
-      Agent -> CLI: 检索最多3个Skill和3条经验候选
+      Agent -> CLI: skill search + experience search\n最多3个Skill和3条经验候选
       CLI --> Agent: 实际返回候选
     end
   else 产品无法定位或用户跳过
-    Agent -> CLI: 兜底检索最多3个Skill和3条经验候选
+    Agent -> CLI: skill search + experience search\n最多3个Skill和3条经验候选
     CLI --> Agent: 实际返回候选
   end
 else 通用能力
-  Agent -> CLI: 直接检索通用Skill
+  Agent -> CLI: skill search --query <任务关键词>
   CLI --> Agent: Skill候选
 end
 Agent -> Agent: 各1.x任务预判Top3和首选\n按任务组聚合
@@ -79,8 +94,9 @@ else 全部由Agent决定、跳过、未选或交互返回无答案
 end
 Agent -> Agent: 按skill name去重锁定集合
 loop 每个锁定Skill
-  Agent -> CLI: 获取Skill包
-  CLI -> API: download(skill_name)
+  Agent -> Agent: 缺少ID时定位并核对同一Skill
+  Agent -> CLI: skill download --skill_id <真实ID>\n--user_id <工号> --output <临时目录>
+  CLI -> API: 按 Skill ID 获取下载地址并下载
   API --> CLI: Skill包
   CLI --> Agent: Skill包
   Agent -> Agent: 解压到临时目录并校验
