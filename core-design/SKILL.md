@@ -295,7 +295,7 @@ AskUserQuestion({
 读取后输出: "GATE PASSED: references/skill-consumption.md loaded"。
 <!-- /GATE:REF -->
 
-**Execution**：完整执行指令见 `references/skill-consumption.md`；配置方式见 `../core-shared/references/skill-consumption-config.md`。
+**Execution**：完整执行指令见 `references/skill-consumption.md`；配置方式见 `../core-shared/references/flow-config-guide.md` §10.1。
 
 ### Phase 9: 设计追溯验证（强制）[可配置: design_traceability]
 

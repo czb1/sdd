@@ -419,7 +419,7 @@ The files depend on the schema being used:
 读取后输出: "GATE PASSED: references/skill-consumption.md loaded"。
 <!-- /GATE:REF -->
 
-**Execution**：完整执行指令见 `references/skill-consumption.md`；配置方式见 `../core-shared/references/skill-consumption-config.md`。
+**Execution**：完整执行指令见 `references/skill-consumption.md`；配置方式见 `../core-shared/references/flow-config-guide.md` §10.1。
 
 ### 9. Implement code-generation tasks (loop until done or blocked, tasks.md `## 代码生成任务` section only)
 
