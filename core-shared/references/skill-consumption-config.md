@@ -15,11 +15,24 @@
 
 ## 配置来源
 
-配置声明应合入完整框架 `core-shared/scripts/flow_config.py` 的 `TEMPLATE_JSONC`；[注释声明片段](../../examples/flow-config.skill-consumption.jsonc) 供合入该模板及已有配置补充缺失声明时参考，不是第二个运行时配置源。分发时同时更新共享配置模块、阶段指令及共享指令，保留其他内置开关、编排点和用户自定义步骤。
+框架配置声明由 `core-shared/scripts/flow_config.py` 的 `TEMPLATE_JSONC` 承载。根据提供的原模板生成了 [原文件补丁](../../patches/skill-consumption-template.patch) 和 [完整常量替换片段](../../patches/flow_config_template.py)。[注释声明示例](../../examples/flow-config.skill-consumption.jsonc) 供已有配置补充缺失声明时参考，不是第二个运行时配置源。分发时同时更新共享配置模块、阶段指令及共享指令，保留其他内置开关、编排点和用户自定义步骤。
 
-本仓当前未包含完整 `flow_config.py`，因此模板合入尚待该源文件；不能把本文或示例片段当作已完成的 `--init` 改造。
+替换片段仅包含 `TEMPLATE_JSONC` 常量，不能用它覆盖完整模块。推荐应用补丁，以便同时修复原 `_fix_restored_entry_separators` 中的首项恢复问题：前一个有效行若为 `"core-apply": {` 等命名空间起始行，不得补逗号；判断应为 `if not code.endswith(("{", ",")):`。原来的 `code != "{"` 会在启用第一个自定义声明时生成非法的 `{,`。
 
 若整个命名空间也是模板中的注释示例，步骤声明保留两层注释：`--init --skill` 提取命名空间并去掉外层注释后，步骤仍默认关闭。已有命名空间不覆盖，只在用户明确选择时补入缺少的声明。
+
+## 合入补丁
+
+在完整 CoreHarness 仓库根目录执行（将 `/path/to/sdd` 替换为本仓位置）：
+
+```bash
+git apply --check --directory=coreharness-spec/skills /path/to/sdd/patches/skill-consumption-template.patch
+git apply --directory=coreharness-spec/skills /path/to/sdd/patches/skill-consumption-template.patch
+
+python /path/to/sdd/tests/test_skill_consumption_flow.py --flow-config coreharness-spec/skills/core-shared/scripts/flow_config.py -v
+```
+
+若目标仓根目录直接包含 `core-shared/`，去掉 `--directory=coreharness-spec/skills`，并相应调整测试路径。补丁按原代码上下文匹配，不依赖完整文件中的固定行号；检查不通过时对照当前实现合并，禁止用常量片段替换整个模块。
 
 ## 开启、关闭与生效
 
@@ -47,3 +60,5 @@
 ## 完整框架验收
 
 分别验证两阶段均关闭、仅 design 开启、仅 apply 开启、两阶段均开启；确认默认注释不产生计划条目，取消注释后只出现在对应插槽，重新关闭并重建后条目消失。检查首次初始化、缺失命名空间追加及已有配置保留；多仓片段须与根计划一致，同插槽其他自定义条目保持原有顺序和行为。
+
+本次已用提供过的配置源码函数验证 JSONC 解析、命名空间提取、注释恢复/关闭、指纹、四种组合的计划及内置步骤独立性；补丁支持两种目录布局和行号偏移，反向应用可还原原文。由于仓库未包含完整 `main.py` 与运行时，完整初始化和多仓片段端到端验收须在目标框架执行，不能把这些函数级检查当作完整端到端结果。

@@ -1,0 +1,38 @@
+--- a/core-shared/scripts/flow_config.py
++++ b/core-shared/scripts/flow_config.py
+@@ -1164,3 +1164,3 @@
+         code = code.rstrip()
+-        if code != "{" and not code.endswith(","):
++        if not code.endswith(("{", ",")):
+             _rewrite(prev_eff, code + ",", cmt)
+@@ -2075,3 +2075,3 @@
+ // 说明：顶层按 skill 名分组。每个 core-* skill 只解析自己的命名空间。
+-//       某 skill 对象不存在 = 该 skill 全默认（内置步骤全开，无自定义步骤）。
++//       某 skill 对象不存在 = 该 skill 全默认（内置步骤按各自默认值启停，无自定义步骤）。
+ //       修改后调用 main.py flow-config --json --skill <name> 重建执行计划。
+@@ -2082,2 +2082,10 @@
+   "core-apply": {
++    // ---- 可选自定义步骤（默认关闭；取消下方整块注释即启用）----
++    // "skill_consumption": {
++    //   "type": "reference",
++    //   "file": "references/skill-consumption.md",
++    //   "at": "pre-codegen",
++    //   "order": 0,
++    //   "description": "按任务读取已关联能力，按需批量补齐后消费"
++    // },
+     // ---- 内置步骤开关（true/false）----
+@@ -2111,4 +2119,13 @@
+   // ---- 其他 core-* skill 的配置各自独立分组（未配置 = 全默认，互不影响）----
+-  // 启用时在上方 core-apply 对象闭合 '}' 后补逗号，例如：
++  // 启用命名空间时只去掉一层注释，并在其闭合 } 后加逗号以连接后续顶层键。
++  // 保留内部自定义声明的注释；需要启用某声明时再取消其整块注释。
+   // "core-design": {
++  //   // ---- 可选自定义步骤（默认关闭；取消下方整块注释即启用）----
++  //   // "skill_consumption": {
++  //   //   "type": "reference",
++  //   //   "file": "references/skill-consumption.md",
++  //   //   "at": "post-generate",
++  //   //   "order": 0,
++  //   //   "description": "任务形成后查找、确认、安装并关联 Skill 与经验"
++  //   // },
+   //   // ---- 内置步骤开关（true/false）----
