@@ -1,12 +1,12 @@
-# 设计阶段任务 Skill 消费 [可配置: skill_consumption]（默认关闭）
+# 设计阶段任务 Skill 消费（自定义 reference 步骤，默认关闭）
 
 目录：启用门控 → 任务能力关联流程 → 多仓执行 → 完成与续跑。
 
 ## 启用门控
 
-仅消费根项目 `docs/.flow_context/execution-plan-core-design.json` 的 `orchestration_points.post-generate` 中 `key=skill_consumption`、`type=reference`、`file=references/skill-consumption.md` 的有效条目。未配置、已注释、条目不存在或显式 `enabled=false` 时立即返回；不得查找、确认、下载或改写关联。其他 reference / skill 条目不等于本步骤开启。仅提供 `--query` 或开启 `expert_experience` 不能开启本步骤。计划不可读取或无效时停止并报告计划错误，不从配置源自行推断。
+仅消费根项目 `docs/.flow_context/execution-plan-core-design.json` 的 `orchestration_points.post-generate` 中 `key=skill_consumption`、`type=reference`、`file` 指向本指令文件的有效条目。未配置、已注释、条目不存在或显式 `enabled=false` 时立即返回；不得查找、确认、下载或改写关联。其他 reference / skill 条目不等于本步骤开启。仅提供 `--query` 或开启 `expert_experience` 不能开启本步骤。计划不可读取或无效时停止并报告计划错误，不从配置源自行推断。
 
-这是现有 `post-generate` 的自定义 reference 子步骤，不新增固定 Phase 或内置布尔键。单仓在 Phase 8 全部产物生成后，多仓在 M-2 全部仓产物生成后，由主会话按插槽顺序执行一次；同一个入口在 SKILL.md 和 multi-repo.md 中的说明不代表执行两次。
+这是现有 `post-generate` 的自定义 reference 子步骤，不新增固定 Phase 或内置布尔键。单仓在 Phase 8 全部产物生成后，多仓在 M-2 全部仓产物生成后，由主会话按插槽顺序执行一次；按通用执行期规则调度，不在骨架或固定步骤表中追加本业务步骤。
 
 <!-- GATE:REF ../core-shared/references/skill-consumption.md -->
 **MANDATORY GATE（仅启用时）**：Read `config_dir / 'skills/core-shared/references/skill-consumption.md'`，按共享规则处理候选、确认、安装、失败及任务回写。路径相对本 SKILL 安装目录为 `../core-shared/references/skill-consumption.md`；不存在时 MUST STOP，不复制规则回 SKILL.md。

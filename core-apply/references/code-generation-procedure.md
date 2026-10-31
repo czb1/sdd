@@ -20,18 +20,16 @@ Step 9 的循环对象**仅限** tasks.md 的 `## 代码生成任务` 章节（1
 - **Step 9 循环内禁止**：执行 `## Code Review 任务` / `## 单元测试任务` 章节的任何 `- [ ]` 任务（包括但不限于 codecheck/cwd-audit/UT 生成等）
 - **Step 9 无待办**（1.x 全部 `- [x]`）且 Step 10~14 对应可配置步骤关闭 → 直接进入下一步/结束流程，**不得**将 2.x/3.x 未完成任务作为 Step 9 循环对象执行
 
+有待办 1.x 任务时，先按 SKILL.md 的执行期规则处理启用 reference 条目声明的主会话前置准备（若有），再进入任务循环；任务级动作不提前执行。
+
 For each pending task in `## 代码生成任务` section:
 1. **针对当前任务进行代码理解**（详见下方 9.1）
 2. **解析设计锚点**（详见下方 9.2）
-3. **分阶段展示设计信息**（P0 → P1 → P2，详见下方 9.3）
+3. **分阶段展示设计信息**（P0 → P1 → P2，详见下方 9.3），随后按 9.3.5 调度 pre-codegen 插槽
 4. **代码生成原则自检**（对照 code-gen-principles.md C-1~C-15，详见下方 9.4）
 5. 执行代码生成（详见下方 9.5；测试策略为 `test-after` 时，按照9.5.1进行执行，否则按照9.5.2执行）
 6. 标记任务完成: `- [ ]` → `- [x]`
 7. Continue to next task
-
-### 可选任务 Skill 消费 [可配置: skill_consumption]（默认关闭）
-
-只检查执行计划 `orchestration_points.pre-codegen` 是否含 `key=skill_consumption` 的 reference 条目。有条目且存在待办 1.x 任务时，循环前 Read `references/skill-consumption.md` 执行批量准备；每任务在 9.3.5 同一条目中执行当前任务消费。无条目时不加载该文件、不读取关联能力内容、不查询或下载、不回写 Skill / 经验字段，直接执行代码生成流程。
 
 ### 9.1 代码理解
 
@@ -163,7 +161,7 @@ Working on task 1.1: explore-doc-reviewer Skill
 ### 9.3.5 编排点插槽 pre-codegen（task 级，条件执行）
 
 查执行计划 `execution-plan-core-apply.json` 的 `orchestration_points` 对象中 `pre-codegen` 插槽数组：
-- **存在条目** → 按条目执行（reference 型：Read 该条目 `file` 指定的指令文件，按其中指令决策；skill 型：调用对应 skill）
+- **存在启用条目** → 按计划顺序（`order` 升序）执行（reference 型：Read 该条目 `file` 指定的指令文件，执行其任务级动作并复用本轮准备结果；skill 型：调用对应 skill，`run_mode=subagent` 时启动独立子代理）；显式 `enabled=false` 的条目跳过
 - **不存在** → 直接进入 9.4（指令文件不加载，内容不进上下文）
 
 ### 9.4 代码生成原则自检

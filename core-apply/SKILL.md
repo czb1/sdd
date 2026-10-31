@@ -236,10 +236,16 @@ sys.exit(result.returncode)
 - **禁止跳过 TaskCreate**（用户可直观看到哪些步骤要执行、哪些已关闭）
 
 **执行期规则**：
+
+下文“执行计划含条目”指存在启用条目：内置步骤须 `enabled=true`，自定义条目不得为 `enabled=false`。`steps` 是完整步骤视图，可能保留 `enabled=false` 的关闭项；不能仅凭键存在就执行。
 - 执行计划是**唯一权威**：后续每个编排点/可配置步骤，查 `execution-plan-core-apply.json` 的 `steps` 数组（主流程步骤，含 `config_key` 的可配置内置步骤）与 `orchestration_points` 对象（5 个插槽子环节）——**有条目则执行，无条目则直接进入下一步**
 - 计划 `orchestration_points` 含 `pre-codegen` 插槽条目 → 每个 task 在 9.3 与 9.4 之间执行该条目指令；不含 → 跳过（指令文件不加载，内容不进上下文）
 - 计划 `orchestration_points` 含 `post-codegen`/`post-l4`/`post-review`/`post-ut` 插槽条目 → 对应 change 级编排点执行；不含 → 跳过
 - 计划 `steps` 数组含 `config_key=version_check`/`show_progress`/`l4_review`/`code_review`/`unit_test`/`l5_coverage`/`completion_report`（`type=built_in`，`enabled=true`）条目 → 执行对应 Step 的指令文件（`ref_file.single` 单仓 / `ref_file.multi` 多仓）；不含 → 该步骤跳过，**不 Read 指令文件**
+- 自定义步骤只由 `orchestration_points` 调度，按计划顺序（`order` 升序）串行执行：`reference` 从条目的 `file` 读取指令，`skill` 调用条目的 `skill`（`run_mode=subagent` 时启动独立子代理）。显式 `enabled=false` 的条目跳过；骨架不指定自定义步骤名称或指令文件。
+- 自定义声明由 `flow_config.py` 的 `TEMPLATE_JSONC` 承载。配置中整块注释表示关闭，取消整块注释表示开启，重建并确认执行计划后生效；已有产物或其他条目不能隐式开启步骤。
+- 有待办 1.x 任务时，在单仓 Step 9 循环前 / 多仓 M-2 代码生成代理启动前，主会话只读取 `pre-codegen` 中已启用 reference 条目的 `file`，按指令完成其声明的主会话前置准备（若有），本轮只准备一次。任务级动作仍留在每个 task 的插槽位置执行；其他类型条目不提前执行。准备结果随任务上下文交给子代理，需用户决策的新增事项返回主会话汇总。
+- 内置步骤关闭不等于关闭其后插槽，仍按计划调度有效条目；计划 / 片段无效或已启用条目的指令文件缺失时停止并报告，不自行重建、猜测启用或静默跳过。
 - `skipped-core-apply.json` 只读：Step 14 完成展示与下游 core-* 读取，agent 全程不写
 
 **Step 1: Version Check [可配置: version_check]**
@@ -409,17 +415,6 @@ The files depend on the schema being used:
 > 本步骤为可配置步骤。执行与否以 Step 0 持久化的 execution-plan-core-apply.json 为准：
 > - **执行计划 steps 数组含 `config_key=show_progress`（type=built_in）条目** → 从该条目 `ref_file.single` 字段取指令文件（动态路径解析参见本SKILL Reference文件路径解析章节）并 Read，按其中指令执行
 > - **执行计划不含本步骤** → 直接进入下一步（指令文件不加载，内容不进上下文）
-
-### pre-codegen：任务 Skill 消费 [可配置: skill_consumption]（默认关闭）
-
-> 仅当执行计划 `execution-plan-core-apply.json` 的 `orchestration_points.pre-codegen` 含 `key=skill_consumption` 的 reference 条目时执行；未配置、已注释或计划中无该条目时跳过，不加载消费指令。循环前准备与每任务消费均受此条目控制；多仓按根项目执行计划及其片段执行。
-
-<!-- GATE:REF references/skill-consumption.md -->
-**MANDATORY GATE（仅启用时）**：Read 本 SKILL 安装目录下的 `references/skill-consumption.md`；文件不存在时 MUST STOP。
-读取后输出: "GATE PASSED: references/skill-consumption.md loaded"。
-<!-- /GATE:REF -->
-
-**Execution**：完整执行指令见 `references/skill-consumption.md`；配置方式见 `../core-shared/references/flow-config-guide.md` §10.1。
 
 ### 9. Implement code-generation tasks (loop until done or blocked, tasks.md `## 代码生成任务` section only)
 

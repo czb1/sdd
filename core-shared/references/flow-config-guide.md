@@ -3,9 +3,8 @@
 > 本指南是**全局共享指南**（框架级）：描述 flow-config 框架的通用配置能力，并按 skill 分节列出各 core-* 技能的可用配置项。
 > 唯一真相源文件位于 core-shared（框架共享）目录：`coreharness-spec/skills/core-shared/references/flow-config-guide.md`，随 coreharness-spec 包分发。
 > 任何 core-* 技能的 `main.py flow-config --init` 都会把它同步到用户级目录 `~/.corespec/flow-config-guide.md`（与 `flow-config.json` 同目录）；`--guide` 输出全文。多技能同步到同一路径，无覆盖冲突（同源单文件）。
-> 新增任务 Skill 消费沿用自定义 reference 步骤，默认关闭；配置方法与关闭语义见 [§10.1](#skill-consumption)。
 
-目录：§1–3 配置模型 → §4 各技能配置 → §5 字段 → §6 执行计划与确认 → §7 辅助命令 → §8–9 默认行为 → §10 示例（含 §10.1 Skill 消费）→ §11 常见问题。
+目录：§1–3 配置模型 → §4 各技能配置 → §5 字段 → §6 执行计划与确认 → §7 辅助命令 → §8–9 默认行为 → §10 示例 → §11 常见问题。
 
 ---
 
@@ -39,6 +38,8 @@
 | `{ type: reference, ... }` | 知识注入型自定义步骤（给 agent 看资料） | type, file, at | order, description, depends_on, dependency_type |
 | `{ type: skill, ... }` | 能力执行型自定义步骤（让 agent 干活） | type, skill, at | order, description, depends_on, dependency_type, run_mode |
 
+内置步骤通过布尔值启停；自定义步骤通过完整对象声明，整块注释即关闭，取消整块注释即开启。两种形式不混用。框架随包提供的自定义声明由 `flow_config.py` 的 `TEMPLATE_JSONC` 承载，经 `--init` 写入配置模板；用户也可以按第 5 节自行编排。自定义业务说明放在对应指令文件中，执行时统一由计划调度。
+
 ## 4. 已接入 skill 一览
 
 每个已接入 flow-config 框架的 core-* 技能在此分节列出**自己的**内置步骤键与编排点。未接入的技能无需任何配置（该 skill 对象不存在 = 全默认）。
@@ -66,14 +67,6 @@
 | post-l4 | change | Step 10 之后 |
 | post-review | change | Step 11 之后 |
 | post-ut | change | Step 12 之后 |
-
-**可选自定义 reference 步骤（默认关闭）**：
-
-| 配置键 | 编排点 | 指令文件（相对 core-apply 安装目录） | 默认 | 依赖 |
-|--------|--------|-----------------------------------|------|------|
-| skill_consumption | pre-codegen | references/skill-consumption.md | 关闭（声明缺失或整块注释） | — |
-
-本条目控制任务循环前的一次批量准备和 9.3.5 的任务级消费；多仓由主会话按根执行计划准备，代码生成代理按下发片段消费。未开启时不加载消费指令，不检索、确认、下载、读取任务关联能力内容或回写关联字段；已有字段与文件保留。design 开启或 tasks.md 已有 Skill 字段都不能隐式开启 apply。配置与完整关闭语义见 [§10.1](#skill-consumption)。
 
 ### 4.2 core-init
 
@@ -174,7 +167,7 @@
 | version_check | Phase 1 版本检查 | true | — |
 | fetch_rules | Phase 2 code-rule 拉取（Step 1~3，**B 档双层语义**：GATE 不受控） | true | — |
 | read_similar | Phase 5 读取相似需求参考归档 | true | — |
-| expert_experience | Phase 7 准备已有设计经验（不检索、下载或触发任务 Skill 消费） | true | — |
+| expert_experience | Phase 7 准备已有设计经验 | true | — |
 | design_traceability | Phase 9 设计追溯验证（cross-doc-checker L2/L3，subagent 强制） | true | — |
 | design_review | Phase 10 design-doc-reviewer 文档审查（subagent 强制） | true | — |
 | cleanup | Phase 11 清理临时文件 | true | — |
@@ -199,16 +192,8 @@
   - `design_traceability=false` 但 `design_review=true`：M-2 完成后直接进入 M-3b，"M-3a 全过后才执行 M-3b"依赖随 `design_traceability` 关闭豁免
 - `cleanup=false`：跳过清理阶段，**须显式记录"cleanup 已关闭，临时文件残留"**，残留由用户或后续人工处理（不阻断流程收尾）；关闭时"最后阶段禁止跳过"自动解除
 - `read_similar=false`：跳过 Phase 5 相似需求参考读取，delta_design 无历史设计参考
-- `expert_experience=false`：仅跳过 Phase 7 已有设计经验准备。任务形成后的 Skill 消费由 `post-generate` 中的 `skill_consumption` reference 条目独立控制，默认关闭；二者互不隐式开启，也无级联依赖。
+- `expert_experience=false`：跳过 Phase 7 已有设计经验准备，不加载对应指令文件；直接进入 Phase 8。
 - `version_check=false`：跳过 Phase 1 版本检查（不推荐关闭）
-
-**可选自定义 reference 步骤（默认关闭）**：
-
-| 配置键 | 编排点 | 指令文件（相对 core-design 安装目录） | 默认 | 依赖 |
-|--------|--------|------------------------------------|------|------|
-| skill_consumption | post-generate | references/skill-consumption.md | 关闭（声明缺失或整块注释） | — |
-
-仅在单仓 Phase 8 / 多仓 M-2 全部产物生成完成后由主会话执行一次。未开启时不加载消费指令，不检索、确认、下载或回写任务能力关联；原有设计流程继续。`expert_experience`、`--query`、已有 Skill 字段和本地目录均不能隐式开启。配置与完整关闭语义见 [§10.1](#skill-consumption)。
 
 ### 4.5 core-archive
 
@@ -332,8 +317,6 @@
 
 配置文件不存在时，内置步骤按出厂默认启停（core-apply 默认开启：version_check/l4_review/code_review/unit_test/l5_coverage/completion_report、**默认关闭：show_progress**；core-init 默认开启：version_check/multi_analysis/check_sync/execute_sync、**默认关闭：okf_knowledge_fetch**；core-explore 默认开启：version_check/knowledge_precheck/brainstorming/find_similar/l1_review/explore_review/cleanup_temp、**默认关闭：req_refine**；core-design 默认全开：version_check/fetch_rules/read_similar/expert_experience/design_traceability/design_review/cleanup；core-archive 默认全开：version_check/core_verify/check_artifacts/check_tasks/backfill/spec_sync/show_summary/push_mr）、无自定义步骤——等价于今天的全量行为（首次构建执行计划时会先提供一次"生成模板 / 继续默认"的配置机会，选择继续默认后即与今天完全一致）。即使配置文件存在，未配置的 skill 顶层对象同样全默认，各 skill 配置互不干扰。**向后兼容是零成本的。**
 
-**新增任务 Skill 消费默认关闭**：`core-design.skill_consumption` 和 `core-apply.skill_consumption` 均为可选自定义 reference 声明，缺失或整块注释时不进入执行计划。原有内置步骤保持各自默认值，启用 `expert_experience` 不会开启任务消费。
-
 ## 10. 配置示例（core-apply 命名空间）
 
 ```jsonc
@@ -389,86 +372,10 @@
 }
 ```
 
-<a id="skill-consumption"></a>
-
-### 10.1 任务 Skill 消费（默认关闭）
-
-任务 Skill 消费通过已有编排点上的自定义 `reference` 对象接入，不新增固定步骤或编排点，也不注册内置布尔键。配置以本指南为准；检索、候选确认、下载与任务回写的执行细节放在阶段专属指令及共享消费指令中，SKILL.md 仅保留启用条件、GATE 和执行指针。
-
-#### 配置与阶段独立性
-
-| 命名空间 | 自定义步骤键 | 已有编排点 | file（相对该 Skill 安装目录） | 默认 |
-|----------|--------------|------------|------------------------------|------|
-| core-design | skill_consumption | post-generate | references/skill-consumption.md | 关闭 |
-| core-apply | skill_consumption | pre-codegen | references/skill-consumption.md | 关闭 |
-
-两个命名空间独立配置：只开启 design 时仅准备并写入任务能力关联，apply 仍不读取或消费这些关联；只开启 apply 时可按需准备并消费能力。本步骤不依赖 `expert_experience`、审查或 UT 开关；关闭本步骤不删除同插槽中的其他自定义步骤。
-
-#### 默认关闭示例
-
-将需要的声明合并到 `~/.corespec/flow-config.json` 的对应命名空间，保留其他键、注释与自定义步骤；已有其他键时按 JSONC 对象语法补逗号，不整文件覆盖用户配置。下例两个声明整块注释，解析后均关闭：
-
-```jsonc
-{
-  // 将需要的声明合并到 ~/.corespec/flow-config.json 的同名命名空间；保留已有配置。
-  // 默认关闭：两个 skill_consumption 对象均保持注释，不产生执行计划条目。
-  // 取消某个对象全部行的注释后，仅启用对应阶段；重新构建并确认执行计划后生效。
-  "core-design": {
-    // "skill_consumption": {
-    //   "type": "reference",
-    //   "file": "references/skill-consumption.md",
-    //   "at": "post-generate",
-    //   "order": 1,
-    //   "description": "任务形成后查找、确认、安装并关联 Skill 与经验"
-    // }
-  },
-  "core-apply": {
-    // "skill_consumption": {
-    //   "type": "reference",
-    //   "file": "references/skill-consumption.md",
-    //   "at": "pre-codegen",
-    //   "order": 1,
-    //   "description": "按任务读取已关联能力，按需批量补齐后消费"
-    // }
-  }
-}
-```
-
-#### 开启、关闭与生效确认
-
-1. 使用既有 `main.py flow-config --init --skill <name>` 初始化所需命名空间（已有时保留），再按上例手动合入需要的注释块。本仓库仅维护指令文件，未修改运行时 `TEMPLATE_JSONC`；同步本指南或执行 `--init` 不会自动添加这两个自定义声明。
-2. **开启**：取消所需对象全部行的注释。**关闭**：将该对象整块注释。不要把配置源中的对象改成 `"skill_consumption": true/false`；它不是内置布尔键，reference 对象也不能填写 `run_mode` / `args`。
-3. 已存在可恢复的声明时，也可沿用 §7 的 `--apply` 注释软删除 / 恢复：`main.py flow-config --apply --skill core-design --changes skill_consumption=` 关闭；`main.py flow-config --apply --skill core-design --changes skill_consumption=true` 恢复。apply 阶段改用 `--skill core-apply`。这里的 `=true` 是恢复声明的命令参数，不是配置源中的布尔值；没有声明时不能凭它创建步骤。
-4. 下次运行对应 Skill 的 Step 0 时，`main.py flow-config --json --skill core-design` 或 `main.py flow-config --json --skill core-apply` 重建执行计划，并按 §6 处理首次配置或配置变更确认。候选选择规则不能代替执行计划确认。
-5. 检查对应 `orchestration_points` 插槽：仅存在 `key=skill_consumption`、`type=reference`、`file=references/skill-consumption.md` 的有效条目时执行。关闭并重建后该条目必须消失；不要手工修改执行计划或 skipped 文件，也不能凭配置源推断旧计划已经更新。
-
-#### 执行位置与关闭语义
-
-- **design / 单仓**：Phase 8 完整生成任务及其他产物后，在 post-generate 中执行一次，再进入追溯验证。
-- **design / 多仓**：M-2 全部仓完成后，由主会话调度同一 post-generate；候选按“仓名 + 任务编号”汇总，主会话统一确认，再按仓安装并回写。M-2 生成代理不提前检索或下载。
-- **apply / 单仓**：pre-codegen 中存在本条目时，任务循环前按专属指令完成一次批量准备，每任务在 9.3.5 读取锁定内容，不重复整批检索或逐任务确认；不改变 pre-codegen 的 task 粒度。
-- **apply / 多仓**：主会话按根执行计划在代码生成代理启动前准备；子代理仅按下发片段中同一条目执行 task 级消费。缺少条目时不得通过本仓配置或 design 计划补开启。
-- **关闭**：不加载专属或共享消费指令，不检索、询问产品 / 候选、下载、读取任务关联能力内容或改写 Skill / 经验关联字段。原有任务文件读取、设计 / 代码生成、checkbox 更新、独立设计经验准备及其他编排条目继续执行；保留已有字段和本地内容，清理仍保护被引用文件。
-
-#### 指令文件与分发
-
-| 文件（相对 coreharness-spec/skills/） | 职责 |
-|-------------------------------------|------|
-| core-design/references/skill-consumption.md | 设计阶段启用检查与任务能力关联 |
-| core-apply/references/skill-consumption.md | 执行阶段启用检查、批量准备与逐任务消费 |
-| core-shared/references/skill-consumption.md | 共享 CLI 调用、候选选择、安装和回写规则 |
-| core-shared/references/flow-config-guide.md | 本指南：配置、默认值、关闭语义与示例 |
-
-部署到已有 CoreSpec 包时同时合入阶段指令和共享指令；共享消费规则通过 `config_dir / 'skills/core-shared/references/skill-consumption.md'` 定位，仅在本步骤启用后加载。core-shared 原有 SKILL.md 骨架、模板自定义命令和模板指南继续承担原有职责，模板初始化与物化不会开启 Skill 消费。
-
-本仓库不包含完整运行时的 `core-shared/scripts/flow_config.py`、`main.py` 或运行时测试。若以后在完整框架中改为内置布尔步骤，需同步注册表（`default: false`）、固定步骤挂载位序、`TEMPLATE_JSONC`、本指南及运行时测试，不能只改文档声明。
-
 ## 11. 常见问题
 
 | 问题 | 说明 |
 |------|------|
-| 任务 Skill 消费怎么开启？ | 见 §10.1，将所需命名空间中的 `skill_consumption` reference 声明取消注释并重建计划；默认关闭，不能直接配置为布尔值 |
-| design 已关联 Skill，apply 会自动消费吗？ | 不会。仅当 core-apply 的执行计划中有自己的 skill_consumption 有效条目时消费 |
 | 关闭的步骤还会执行吗？ | 不会。关闭步骤的指令文件不加载，内容不进 agent 上下文（结构阻断） |
 | 首次运行（没有配置文件）会发生什么？ | 构建执行计划时会询问是否生成配置模板（`main.py flow-config --init`）或继续默认。选择继续默认后与旧行为完全一致；之后任何时候都可以用 `--init` 生成模板再修改 |
 | 修改配置后需要做什么？ | 无需手动操作。下次构建执行计划检测到指纹变化（场景 E）会自动重建计划并请确认 |

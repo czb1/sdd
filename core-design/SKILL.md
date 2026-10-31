@@ -1,6 +1,6 @@
 ---
 name: core-design
-description: Design document generation - reads delta_spec.md from explore phase from docs, fetch rule lists and request for relevant rules, generates design artifacts based on schema definitions with expert experience integration and optional task-level Skill consumption (disabled by default)
+description: Design document generation - reads delta_spec.md from explore phase from docs, fetch rule lists and request for relevant rules, generates design artifacts based on schema definitions with expert experience integration and configurable orchestration
 license: MIT
 compatibility: Works without npm - uses Python scripts with schema-driven generation
 metadata:
@@ -18,7 +18,7 @@ Design document generation for a change.
 - Change name (kebab-case)
 - `docs/relationship.md` - 多仓库依赖关系，理解设计涉及的跨仓库调用链
 - Optional: `--step` for step mode, `--quick` for quick mode
-- Optional: `--query` for task capability search keywords (only when `skill_consumption` is enabled)
+- Optional: `--query` as additional context for enabled extensions; it does not change the execution plan
 
 ## Execution Method
 
@@ -170,6 +170,27 @@ AskUserQuestion({
 - task 描述注明对应步骤/config_key/M 阶段与启停状态
 - **禁止跳过 TaskCreate**（用户可直观看到哪些步骤要执行、哪些已关闭）
 
+**执行期规则**：
+
+下文“执行计划含条目”指存在启用条目：内置步骤须 `enabled=true`，自定义条目不得为 `enabled=false`。`steps` 是完整步骤视图，可能保留 `enabled=false` 的关闭项；不能仅凭键存在就执行。
+
+- 执行计划是唯一权威。内置步骤只从 `steps` 中查找 `type=built_in`、`enabled=true` 且 `config_key` 匹配的条目，读取其 `ref_file.single` / `ref_file.multi`；没有启用条目时跳过，不加载指令文件。
+- 自定义步骤只从 `orchestration_points` 对应插槽读取，按计划顺序（`order` 升序）串行执行。`type=reference` 时 Read 条目的 `file` 并执行；`type=skill` 时调用条目的 `skill`，`run_mode=subagent` 时启动独立子代理。显式 `enabled=false` 的条目跳过；插槽为空时不加载任何自定义指令。
+- 自定义步骤的声明由 `flow_config.py` 的 `TEMPLATE_JSONC` 承载；配置中整块注释表示关闭，取消整块注释表示开启，重建并确认执行计划后生效。骨架不指定自定义步骤名称或指令文件，不根据已有产物、输入参数或其他步骤推断启用。
+- 按下表在阶段边界调度插槽；多仓的 change 级插槽由主会话聚合执行一次，子代理不重复调度。某个内置步骤关闭只跳过该步骤，仍检查其后插槽，由计划中的依赖结果决定各自定义条目是否执行。
+- 计划不可读取或结构无效时停止并报告；已启用条目的指令文件缺失时停止并报告，不从配置源重建或静默跳过。
+
+| 插槽 | 单仓执行位置 | 多仓执行位置 |
+|------|--------------|--------------|
+| post-rule-fetch | Phase 2 完成后 | Phase 2 完成后 |
+| post-gather-context | Phase 3 完成后 | M-1 完成后 |
+| post-code-understanding | Phase 4 完成后 | Phase 4 完成后 |
+| pre-generate | Phase 8 开始前 | M-2 启动前 |
+| post-generate | Phase 8 全部产物生成后、Phase 9 前 | M-2 全部仓产物生成后、M-3a 前 |
+| post-traceability | Phase 9 完成或跳过后 | M-3a 完成或跳过后 |
+| post-design-review | Phase 10 完成或跳过后 | M-3b 完成或跳过后 |
+| post-cleanup | Phase 11 完成或跳过后 | cleanup 完成或跳过后 |
+
 ## Artifact Scope
 
 | Phase | Artifacts Generated | Input Required |
@@ -286,17 +307,6 @@ AskUserQuestion({
 
 **多仓模式**：本 Phase 的单仓文档生成由 M-2 替代；Phase 9~11 仍正常执行。
 
-### post-generate：任务 Skill 消费 [可配置: skill_consumption]（默认关闭）
-
-> 仅当执行计划 `execution-plan-core-design.json` 的 `orchestration_points.post-generate` 含 `key=skill_consumption` 的 reference 条目时执行；未配置、已注释或计划中无该条目时跳过，不加载消费指令。单仓 Phase 8 / 多仓 M-2 全部完成后，由主会话在该插槽执行一次，再进入 Phase 9。
-
-<!-- GATE:REF references/skill-consumption.md -->
-**MANDATORY GATE（仅启用时）**：Read 本 SKILL 安装目录下的 `references/skill-consumption.md`；文件不存在时 MUST STOP。
-读取后输出: "GATE PASSED: references/skill-consumption.md loaded"。
-<!-- /GATE:REF -->
-
-**Execution**：完整执行指令见 `references/skill-consumption.md`；配置方式见 `../core-shared/references/flow-config-guide.md` §10.1。
-
 ### Phase 9: 设计追溯验证（强制）[可配置: design_traceability]
 
 > 本步骤为可配置步骤。执行与否以构建执行计划持久化的 execution-plan-core-design.json 为准：
@@ -367,7 +377,6 @@ The design-phase artifacts are defined in `core-schemas/spec-driven/schema.yaml`
 - Phase 5 (Similar Changes): ✓ (if references exist)
 - Phase 6 (Brainstorming Output): ✓ (if exists)
 - Phase 7 (Existing Experience Context): <已准备 / 无可复用经验 / 已关闭>
-- post-generate (skill_consumption): <已关闭（默认）/ 实际执行结果>
 - Phase 8 (Generate Artifacts): ✓ (已执行内容填充，已对照 design-principles.md + design-views.md)
 - Phase 9 (设计追溯验证): ✓ (cross-doc-checker L2/L3)
 - Phase 10 (design-doc-reviewer 审查): ✓
@@ -390,7 +399,6 @@ Ready for implementation. Run /core-apply <change-name>
 - **Design phase only**: core-design does NOT generate proposal.md or delta_spec.md
 - **Schema-driven**: All artifact filenames and formats are defined in schema.yaml
 - **`language-specific design specifications` integration**: Automatically reads and injects these constraints fetched in step 3.
-- **Skill 消费**：`skill_consumption` 默认关闭；仅按执行计划加载专属指令，不由 `expert_experience` 或 `--query` 隐式开启。
 - **Similar Changes**: Reads referenced similar changes for design patterns
 - **tasks.md NOT task.md**: The schema defines artifact ID `tasks` which generates `tasks.md` (plural)
 - **Checkbox format**: The schema requires checkbox format (`- [ ]`) for tasks
