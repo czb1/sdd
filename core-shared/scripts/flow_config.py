@@ -1864,4 +1864,207 @@ def apply_dependency_rules(
         }
     return resolved, disabled, fixed_disabled
 
+def build_custom_step_entry(name: str, value: Dict[str, Any]) -> Dict[str, Any]:
+    """Normalize a custom step declaration into a custom_steps entry."""
+    entry: Dict[str, Any] = {"key": name}
+    entry.update(value)
+    # normalize order (default 0)
+    entry.setdefault("order", 0)
+    # normalize run_mode for skill type (default "direct"); reference type carries no run_mode
+    if entry.get("type") == "skill":
+        entry["run_mode"] = entry.get("run_mode", "direct")
+    else:
+        entry.pop("run_mode", None)
+    return entry
+
+
+def build_execution_plan(skill: str, ns: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    """
+    Build the execution plan for the given skill namespace.
+
+    ns is None -> all-default plan (all built-in steps enabled, no custom steps).
+
+    Plan zones:
+      steps                 full ordered view of the whole flow — every fixed
+                            step (step-0..step-15) plus every enabled
+                            configurable built-in step, in SKILL.md execution
+                            order, each carrying its own execution info
+      orchestration_points  sub-step slots (per-skill: core-apply pre-codegen
+                            / post-codegen / post-l4 / post-review / post-ut;
+                            core-init post-init-structure / post-scan-language
+                            / post-multi-analysis / pre-execute-sync /
+                            post-execute-sync) with the custom step entries
+                            routed to each slot (execution order within a slot
+                            = entry order)
+      disabled              closed facts & reasons (config / user_cancelled /
+                            dependency_downgraded)
+
+    Config source stays in ~/.corespec/flow-config.json — the plan presents
+    only final execution state (no raw declaration duplication).
+    """
+    ns = ns or {}
+    built_in_steps = get_built_in_steps(skill)
+    builtin_keys = {b["key"] for b in built_in_steps}
+
+    # 1. built-in step flags
+    builtin_flags: Dict[str, bool] = {}
+    for b in built_in_steps:
+        configured = ns.get(b["key"])
+        if isinstance(configured, bool):
+            builtin_flags[b["key"]] = configured
+        else:
+            builtin_flags[b["key"]] = b["default"]
+
+    resolved_flags, dep_disabled, fixed_disabled = apply_dependency_rules(builtin_flags)
+
+    # 2. custom step entries (normalized), with hard-dependency cascade skip
+    custom_disabled: Dict[str, Dict[str, Any]] = {}
+    final_custom: List[Dict[str, Any]] = []
+    for key, value in ns.items():
+        if key in builtin_keys:
+            continue
+        if isinstance(value, bool):
+            continue  # stray boolean already validated -> error earlier
+        entry = build_custom_step_entry(key, value)
+        deps = entry.get("depends_on") or []
+        dep_type = entry.get("dependency_type", "hard")
+        closed_dep = next((d for d in deps if not resolved_flags.get(d, True)), None)
+        if closed_dep is not None and dep_type == "hard":
+            custom_disabled[entry["key"]] = {
+                "reason": REASON_DEPENDENCY_DOWNGRADED,
+                "dependency_of": closed_dep,
+                "auto_downgraded": True,
+            }
+            continue
+        final_custom.append(entry)
+
+    # 3. steps zone: fixed steps (always, in SKILL.md order) merged with
+    #    enabled configurable built-in steps at their fixed-step position
+    enabled_builtin = {b["key"]: b for b in built_in_steps if resolved_flags[b["key"]]}
+    steps: List[Dict[str, Any]] = []
+    for f in get_fixed_steps(skill):
+        entry: Dict[str, Any] = {
+            "key": f["key"],
+            "skill_md_step": f["skill_md_step"],
+            "description": f["description"],
+            "type": "fixed",
+        }
+        bkey = _built_in_step_key_for(f["key"], skill)
+        if bkey is not None and bkey in enabled_builtin:
+            b = enabled_builtin[bkey]
+            entry["type"] = "built_in"
+            entry["config_key"] = bkey
+            entry["enabled"] = True
+            # 双层语义步骤（B 档，如 core-explore knowledge_precheck/brainstorming）：
+            # 指令文件挂 ref_file 条件加载（knowledge-precheck.md /
+            # requirement-clarification.md）——含 ref_file 才挂载到计划条目，
+            # 关闭时整个步骤降为 fixed、ref_file 不挂载、指令文件不加载
+            if b.get("ref_file"):
+                entry["ref_file"] = b["ref_file"]
+        elif bkey is not None:
+            # 可配置内置步骤（默认关闭或配置关闭）：步骤位仍在（全貌有序），
+            # 关闭态不携带 config_key/ref_file → 执行计划不含其条目，指令文件不加载
+            entry["enabled"] = False
+        elif f["key"] in fixed_disabled:
+            # 互斥规则触发的固定步骤降级（如 core-explore req_refine=true → step-4 降级）：
+            # 步骤位仍在（全貌有序），但 enabled=false，不携带 config_key/ref_file
+            entry["enabled"] = False
+            entry["disabled_reason"] = fixed_disabled[f["key"]]
+        else:
+            entry["enabled"] = True
+        steps.append(entry)
+
+    # 4. orchestration_points zone: custom steps routed to their slot
+    slots: Dict[str, List[Dict[str, Any]]] = {p: [] for p in get_orchestration_points(skill)}
+    for entry in final_custom:
+        slots[entry["at"]].append(
+            {k: v for k, v in entry.items() if k not in ("at", "depends_on", "dependency_type")}
+        )
+
+    # 5. disabled zone (facts & reasons; execution does NOT read)
+    disabled_zone: Dict[str, Dict[str, Any]] = {}
+    for b in built_in_steps:
+        k = b["key"]
+        if not resolved_flags[k]:
+            if k in dep_disabled:
+                disabled_zone[k] = dep_disabled[k]
+            else:
+                info: Dict[str, Any] = {
+                    "reason": REASON_DISABLED_BY_CONFIG,
+                    "auto_downgraded": False,
+                }
+                # 默认关闭的步骤（如 show_progress）关闭是"出厂默认态"，
+                # 标记 default_disabled 以便 is_all_default_plan 仍视为全默认、
+                # 确认摘要不把它当作异常关闭呈现
+                if not b.get("default"):
+                    info["default_disabled"] = True
+                disabled_zone[k] = info
+    disabled_zone.update(custom_disabled)
+    # 互斥规则触发的固定步骤降级（如 core-explore req_refine=true → step-4 降级）
+    # 也并入 disabled_zone，键名用 fixed step key（如 "step-4"），与 built-in key
+    # 命名空间分离（built-in 用 config_key 如 "req_refine"，fixed 用 "step-N"）
+    for fixed_key, reason_info in fixed_disabled.items():
+        disabled_zone[fixed_key] = reason_info
+
+    return {
+        "skill": skill,
+        "steps": steps,
+        "orchestration_points": slots,
+        "disabled": disabled_zone,
+    }
+
+
+def consistency_check(plan: Dict[str, Any]) -> List[str]:
+    """
+    Consistency contract assertions:
+    1. disabled zone keys are mutually exclusive with enabled built-in steps
+    2. every built-in configurable step is either enabled (in steps) or
+       disabled (no third state)
+    3. every orchestration slot is present (all 5 slots always exist)
+    Returns error messages (empty = consistent).
+    """
+    errors: List[str] = []
+    enabled_keys = {
+        e["config_key"]
+        for e in plan.get("steps", [])
+        if e.get("type") == "built_in" and e.get("enabled")
+    }
+    disabled_keys = set(plan.get("disabled", {}).keys())
+    overlap = enabled_keys & disabled_keys
+    if overlap:
+        errors.append(f"一致性契约违反：启用步骤与 disabled 互斥，交集 = {sorted(overlap)}")
+    for b in get_built_in_steps(plan.get("skill", "")):
+        k = b["key"]
+        in_plan = k in enabled_keys
+        in_disabled = k in disabled_keys
+        if in_plan == in_disabled:
+            errors.append(f"一致性契约违反：内置步骤 '{k}' 既不在启用步骤也不在 disabled（无第三种状态）")
+    slots = plan.get("orchestration_points", {})
+    for p in get_orchestration_points(plan.get("skill", "")):
+        if p not in slots:
+            errors.append(f"一致性契约违反：编排点 '{p}' 缺失（五个插槽必须齐全）")
+    return errors
+
+
+def is_all_default_plan(plan: Dict[str, Any]) -> bool:
+    """Plan equals all-default: every built-in step at its DECLARED default, no custom steps."""
+    builtins = {b["key"]: b for b in get_built_in_steps(plan.get("skill", ""))}
+    for b in builtins.values():
+        entry = next(
+            (e for e in plan.get("steps", []) if e.get("config_key") == b["key"]),
+            None,
+        )
+        if b["default"]:
+            # default-enabled step must be enabled (present in steps)
+            if entry is None or not entry.get("enabled", False):
+                return False
+        else:
+            # default-disabled step must be closed (absent from steps)
+            if entry is not None:
+                return False
+    for slot in plan.get("orchestration_points", {}).values():
+        if slot:
+            return False
+    return True
+
 
