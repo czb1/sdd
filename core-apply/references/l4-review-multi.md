@@ -1,11 +1,11 @@
-# Step 10: Gate-1 L4 实现追溯验证（多仓模式指令）
+# Step 11: Gate-1 L4 实现追溯验证（多仓模式指令）
 
 > 本文件为可配置步骤 `l4_review` 的指令文件（多仓版）。仅在执行计划含 `key=l4_review` 条目时被 Read。
 > 指令来源：`references/multi-repo.md` 的 **M-3**（多仓下 L4 验证的唯一执行权威，与 multi-repo.md 内容一致）。
 
 ## 多仓下的执行位置
 
-多仓模式下，L4 验证由 **M-3** 承担（替代单仓 Step 10 gate-1-traceability）。M-2（各仓代码生成）完成后，主会话分派 M-3 子代理并行执行各仓 L4 验证：
+多仓模式下，L4 验证由 **M-3** 承担（替代单仓 Step 11 gate-1-traceability）。M-2（各仓代码生成）完成后，主会话分派 M-3 子代理并行执行各仓 L4 验证：
 
 - M-3: 各仓L4实现追溯验证（subagent并行，替代门控1 L4）
 

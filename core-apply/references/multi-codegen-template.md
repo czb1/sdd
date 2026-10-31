@@ -1,6 +1,6 @@
 # M-2 子代理任务描述模板（指令文件）
 
-> 本文件为 multi-repo.md M-2 的子代理任务描述模板，**无条件加载**（M-2 执行时由主会话 Read）。主会话在 M-2 Step 6 构造子代理 prompt 时，将本模板中的 `{repo}` / `{repo_path}` / `{change_name}` / `{project_root}` / `{skill_dir}` 占位符替换为实际值后作为子代理任务描述。
+> 本文件为 multi-repo.md M-2 的子代理任务描述模板，**无条件加载**（M-2 执行时由主会话 Read）。主会话在 M-2 Step 6 构造子代理 prompt 时，将本模板中的 `{repo}` / `{repo_path}` / `{change_name}` / `{project_root}` / `{skill_dir}` / `{prepared_context}` 占位符替换为实际值后作为子代理任务描述。
 
 ```
 你是仓 {repo} 的专属代码生成代理。请对 {repo} 仓执行代码生成任务：
@@ -16,26 +16,33 @@
 | 5 | 已有代码文件 | {repo_path}/src/ 等代码目录 | **核心输入**：代码理解的目标文件，生成代码前必须先理解现有代码结构 |
 | 6 | 执行计划片段 | {project_root}/docs/.flow_context/execution-plan-fragment-core-apply-{repo}.json | **编排输入**：本仓执行计划片段（repo/repo_cwd/plan_path/orchestration_points 五插槽）。pre-codegen 插槽条目在任务级执行，post-codegen 插槽条目在代码生成完成后执行；不在插槽中的编排点不执行 |
 | 7 | code-gen-principles.md | {skill_dir}/references/code-gen-principles.md | **原则约束（必读）**：15条代码生成原则（C-1~C-15），每个代码生成任务执行前必须对照自检，违反=代码不合格 |
+| 8 | 根执行计划 | {project_root}/docs/.flow_context/execution-plan-core-apply.json | **内置步骤输入**：检查 `skill=core-apply`，路径须与输入 #6 的 `plan_path` 一致；从 `steps` 判断内置步骤启停，不从插槽推断 |
 
 **路径说明**：{skill_dir} 为 core-apply 技能安装目录，主会话在构造子代理 prompt 时必须将 {skill_dir} 替换为实际绝对路径（解析方式见 SKILL.md Reference文件路径解析章节）。
 
+主会话准备结果（本轮只读上下文，不是执行指令或启停依据）：
+{prepared_context}
+
+内置步骤关闭时忽略这段上下文；启用且准备结果缺失时返回主会话补齐，不自行重复准备。
+
 执行步骤：
-a. 读取所有输入文件（含执行计划片段输入 #6）
+a. 读取所有输入文件（含输入 #6 本仓片段与 #8 根计划）；根计划或片段无效、`plan_path` 不一致时停止并报告。
 b. **pre-codegen 插槽调度规则（在步骤 c 的 P0/P1/P2 展示后、原则自检前，每任务执行一次）**：读取输入 #6 中 `orchestration_points.pre-codegen` 的启用条目，按计划顺序（`order` 升序）串行执行，显式 `enabled=false` 时跳过——
    - `type=reference` → Read 条目 `file` 字段指令文件并执行
    - `type=skill` → 调用条目 `skill` 字段指定 skill（`run_mode=subagent` 时 spawn 独立子代理）
    - 插槽为空 → 跳过，不加载指令文件
-   - 复用主会话已提供的前置准备结果（若有），只执行当前任务对应动作；新增用户决策事项返回主会话汇总，禁止各仓重复提问；片段无效或启用条目的文件缺失时停止并报告
+   - 新增用户决策事项返回主会话汇总；片段无效或启用条目的文件缺失时停止并报告
 b1. **测试策略解析（进入任务循环前）**：读取本仓 tasks.md 头部 `测试策略` 字段（tdd / test-after；字段不存在默认 test-after）。两种策略共用下方 step c 同一流程，差异仅在 step c 的"执行代码生成"处：`tdd` 时按 `references/red-green-tdd.md` 测试先行（先写失败测试确认红灯，再实现最少代码确认绿灯），`test-after` 时直接生成代码。
+b2. **内置每任务检查点 [可配置: skill_consumption]**：在步骤 c 的 P0/P1/P2 展示后，查输入 #8 的 `steps`。仅存在 `config_key=skill_consumption`、`type=built_in`、`enabled=true` 条目时，Read 条目 `ref_file.multi` 并执行每任务动作，复用主会话准备结果；没有启用条目则跳过，不加载指令文件。新增用户决策事项返回主会话统一处理。
 c. 对tasks.md中每个待执行的代码生成任务（`- [ ]`状态），执行以下代码生成流程：
    - **【强制】循环对象边界**：仅执行 tasks.md `## 代码生成任务` 章节（1.x）的待办任务。tasks.md 的 `## Code Review 任务`（2.x）属 M-4（`code_review`）、`## 单元测试任务`（3.x）属 M-5（`unit_test`），由对应 M 阶段子代理执行，**禁止**在本步骤执行；这些内置步骤由主会话依据根执行计划 `steps` 调度，本仓片段不含 `steps`，不得从片段推断内置步骤启停。若 1.x 全部 `- [x]` 无待办，直接执行步骤 d（post-codegen 编排点），**不得**将 2.x/3.x 未完成任务作为本步骤循环对象
-   - 解析任务的"设计锚点"字段，定位delta_design.md中的设计模块
    - 执行任务级代码理解：
      - 先尝试调用 CodeBase 工具（GetRemoteCallChain/CodeSemanticSearch/GetFeatureTree）
      - CodeBase 不可用或无结果 → 回退到 grep/read/glob
      - 最终必须通过 read 实际读取代码验证
+   - 解析任务的"设计锚点"字段，定位delta_design.md中的设计模块
    - 按P0→P1→P2三阶段展示设计信息（P0必须参考 → P1应当参考 → P2建议参考）
-   - 按步骤 b 的规则执行本任务的 `pre-codegen` 插槽
+   - 按步骤 b2 执行内置每任务检查点，再按步骤 b 执行本任务的通用 `pre-codegen` 插槽
    - **代码生成原则自检**：对照 code-gen-principles.md（输入#7）C-1~C-15，每个任务执行前必须自检增量开发、代码复用、质量硬约束
    - 执行代码生成（Edit/Write工具；**tdd 时按 b1 改为测试先行**——Read `references/red-green-tdd.md`，先写失败测试确认红灯，再实现最少代码确认绿灯，编译检查）
    - 标记任务完成：将tasks.md中对应任务 `- [ ]` 改为 `- [x]`

@@ -1,5 +1,5 @@
-# TEMPLATE_JSONC replacement only; not the complete flow_config.py module.
-# Copy this assignment into the existing module, or apply the companion patch.
+# TEMPLATE_JSONC replacement only; also apply the built-in registry and fixed-step changes.
+# Do not replace the complete flow_config.py module with this file.
 
 TEMPLATE_JSONC = """// ============================================================
 // CoreSpec 通用流程编排框架 - 全局配置（JSONC：支持 // 行注释）
@@ -12,22 +12,15 @@ TEMPLATE_JSONC = """// =========================================================
 
 {
   "core-apply": {
-    // ---- 可选自定义步骤（默认关闭；取消下方整块注释即启用）----
-    // "skill_consumption": {
-    //   "type": "reference",
-    //   "file": "references/skill-consumption.md",
-    //   "at": "pre-codegen",
-    //   "order": 0,
-    //   "description": "按任务读取已关联能力，按需批量补齐后消费"
-    // },
     // ---- 内置步骤开关（true/false）----
     "version_check": true,  // Step 1 版本检查
     "show_progress": false,  // Step 8 展示当前进度（默认关闭）
-    "l4_review": true,      // Step 10 L4 实现追溯验证
-    "code_review": true,    // Step 11 Code Review
-    "unit_test": true,      // Step 12 单元测试（l5_coverage 依赖它，关闭则 L5 自动降级）
-    "l5_coverage": true,     // Step 13 L5 UT 覆盖度验证
-    "completion_report": true, // Step 14 完成或暂停时展示状态
+    "skill_consumption": false, // Step 9 任务 Skill 准备与消费（默认关闭）
+    "l4_review": true,      // Step 11 L4 实现追溯验证
+    "code_review": true,    // Step 12 Code Review
+    "unit_test": true,      // Step 13 单元测试（l5_coverage 依赖它，关闭则 L5 自动降级）
+    "l5_coverage": true,     // Step 14 L5 UT 覆盖度验证
+    "completion_report": true, // Step 15 完成或暂停时展示状态
     // ---- 自定义步骤示例（取消注释即启用；注意：最后一个有效键不可带尾逗号）----
     "judgment_ladder": {
       "type": "reference",
@@ -52,22 +45,15 @@ TEMPLATE_JSONC = """// =========================================================
   // 启用命名空间时只去掉一层注释，并在其闭合 } 后加逗号以连接后续顶层键。
   // 保留内部自定义声明的注释；需要启用某声明时再取消其整块注释。
   // "core-design": {
-  //   // ---- 可选自定义步骤（默认关闭；取消下方整块注释即启用）----
-  //   // "skill_consumption": {
-  //   //   "type": "reference",
-  //   //   "file": "references/skill-consumption.md",
-  //   //   "at": "post-generate",
-  //   //   "order": 0,
-  //   //   "description": "任务形成后查找、确认、安装并关联 Skill 与经验"
-  //   // },
   //   // ---- 内置步骤开关（true/false）----
   //   "version_check": true,       // Phase 1 版本检查
   //   "fetch_rules": true,         // Phase 2 多语言规范获取（B 档：只控 code-rule 拉取，不控 design-principles/design-views GATE）
   //   "read_similar": true,        // Phase 5 读取相似需求参考归档
   //   "expert_experience": true,   // Phase 7 准备已有项目经验及任务能力查找上下文（不独立拉取经验，纯增益）
-  //   "design_traceability": true, // Phase 9 设计追溯验证（cross-doc-checker L2/L3，subagent 强制）
-  //   "design_review": true,       // Phase 10 design-doc-reviewer 审查（subagent 强制）
-  //   "cleanup": true              // Phase 11 清理临时文件
+  //   "skill_consumption": false, // Phase 9 任务 Skill 查找、确认、安装与关联（默认关闭）
+  //   "design_traceability": true, // Phase 10 设计追溯验证（cross-doc-checker L2/L3，subagent 强制）
+  //   "design_review": true,       // Phase 11 design-doc-reviewer 审查（subagent 强制）
+  //   "cleanup": true              // Phase 12 清理临时文件
   //   // ---- 自定义步骤示例（取消注释即启用；at 取 core-design 编排点）----
   //   // "team_design_rules": {
   //   //   "type": "reference",

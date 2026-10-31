@@ -1,14 +1,12 @@
-"""Exercise the real flow-config parser, toggles and plan builder in isolation."""
+"""Exercise builtin consumption against a supplied complete flow_config.py."""
 
 import argparse
-import sys
 import importlib.util
-import json
 from pathlib import Path
+import sys
 import tempfile
 import unittest
 from unittest.mock import patch
-
 
 ROOT = Path(__file__).resolve().parents[1]
 source_path = ROOT / "core-shared/scripts/flow_config.py"
@@ -25,18 +23,17 @@ if source_path.is_file():
     spec.loader.exec_module(flow)
 
 
-@unittest.skipIf(flow is None, "Supply the complete runtime via --flow-config /path/to/flow_config.py")
-
+@unittest.skipIf(flow is None, "Supply the runtime via --flow-config /path/to/flow_config.py")
 class SkillConsumptionFlowTests(unittest.TestCase):
     def setUp(self):
-        self.directory = tempfile.TemporaryDirectory()
-        self.addCleanup(self.directory.cleanup)
-        self.config = Path(self.directory.name) / "flow-config.json"
-        self.path_patch = patch.object(flow, "get_config_path", return_value=self.config)
-        self.path_patch.start()
-        self.addCleanup(self.path_patch.stop)
+        directory = tempfile.TemporaryDirectory()
+        self.addCleanup(directory.cleanup)
+        self.config = Path(directory.name) / "flow-config.json"
+        path_patch = patch.object(flow, "get_config_path", return_value=self.config)
+        path_patch.start()
+        self.addCleanup(path_patch.stop)
 
-    def initialize_both_namespaces(self):
+    def initialize(self):
         blocks = []
         for skill in ("core-design", "core-apply"):
             block = flow._extract_skill_block_from_template(skill)
@@ -49,97 +46,110 @@ class SkillConsumptionFlowTests(unittest.TestCase):
         self.assertIsNone(error)
         return config
 
-    def plan(self, skill):
-        namespace = flow.get_skill_namespace(self.read_config(), skill)
+    def plan(self, skill, namespace):
         self.assertEqual(flow.validate_namespace(namespace, skill), [])
         plan = flow.build_execution_plan(skill, namespace)
         self.assertEqual(flow.consistency_check(plan), [])
         return plan
 
-    def toggle(self, skill, enabled):
-        fn = flow.uncomment_config_key if enabled else flow.comment_out_config_key
-        ok, error = fn(skill, "skill_consumption")
-        self.assertTrue(ok, error)
+    def entry(self, plan):
+        builtin = next(b for b in flow.get_built_in_steps(plan["skill"]) if b["key"] == "skill_consumption")
+        return next(e for e in plan["steps"] if e["key"] == builtin["at"])
 
-    def test_default_template_and_namespace_extraction_keep_consumption_disabled(self):
-        parsed = flow.parse_jsonc(flow.TEMPLATE_JSONC)
-        self.assertNotIn("skill_consumption", parsed.get("core-apply", {}))
-        self.initialize_both_namespaces()
+    def test_template_and_namespace_extraction_use_false_switches(self):
+        self.assertIs(flow.parse_jsonc(flow.TEMPLATE_JSONC)["core-apply"]["skill_consumption"], False)
+        self.initialize()
         for skill in ("core-design", "core-apply"):
-            self.assertNotIn("skill_consumption", self.read_config()[skill])
-            declaration = next(entry for entry in flow.list_commented_custom_steps(skill)
-                               if entry["key"] == "skill_consumption")
-            self.assertEqual(declaration["declaration"]["type"], "reference")
-            self.assertFalse(any(entry["key"] == "skill_consumption" for items in self.plan(skill)["orchestration_points"].values() for entry in items))
+            self.assertIs(self.read_config()[skill]["skill_consumption"], False)
+            self.assertFalse(any(e["key"] == "skill_consumption" for e in flow.list_commented_custom_steps(skill)))
 
-    def test_all_four_enable_combinations_use_only_their_slots(self):
+    def test_missing_namespace_and_key_are_default_disabled(self):
+        for skill in ("core-design", "core-apply"):
+            for namespace in (None, {}):
+                plan = flow.build_execution_plan(skill, namespace)
+                self.assertEqual(flow.consistency_check(plan), [])
+                self.assertTrue(flow.is_all_default_plan(plan))
+                self.assertFalse(self.entry(plan)["enabled"])
+                self.assertTrue(plan["disabled"]["skill_consumption"]["default_disabled"])
+
+    def test_four_enable_combinations_are_builtins_outside_custom_slots(self):
         for design in (False, True):
             for apply in (False, True):
-                with self.subTest(design=design, apply=apply):
-                    self.initialize_both_namespaces()
-                    for skill, enabled, slot in (("core-design", design, "post-generate"),
-                                                 ("core-apply", apply, "pre-codegen")):
+                for skill, enabled in (("core-design", design), ("core-apply", apply)):
+                    with self.subTest(design=design, apply=apply, skill=skill):
+                        plan = self.plan(skill, {"skill_consumption": enabled})
+                        entry = self.entry(plan)
+                        self.assertIs(entry["enabled"], enabled)
+                        self.assertFalse(any(e["key"] == "skill_consumption" for items in plan["orchestration_points"].values() for e in items))
                         if enabled:
-                            self.toggle(skill, True)
-                        plan = self.plan(skill)
-                        entries = [entry for entry in plan["orchestration_points"][slot]
-                                   if entry["key"] == "skill_consumption"]
-                        self.assertEqual(len(entries), int(enabled))
-                        self.assertFalse(any(entry.get("config_key") == "skill_consumption"
-                                             for entry in plan["steps"]))
-                        if entries:
-                            self.assertEqual(entries[0]["type"], "reference")
-                            self.assertEqual(entries[0]["file"], "references/skill-consumption.md")
-                            self.assertNotIn("run_mode", entries[0])
-                        for other_slot, items in plan["orchestration_points"].items():
-                            if other_slot != slot:
-                                self.assertFalse(any(entry["key"] == "skill_consumption" for entry in items))
+                            self.assertEqual(entry["type"], "built_in")
+                            self.assertEqual(entry["config_key"], "skill_consumption")
+                            self.assertNotIn("skill_consumption", plan["disabled"])
+                            for mode in ("single", "multi"):
+                                self.assertEqual(entry["ref_file"][mode], "references/skill-consumption.md")
+                                self.assertTrue((ROOT / skill / entry["ref_file"][mode]).is_file())
+                        else:
+                            self.assertNotIn("config_key", entry)
+                            self.assertNotIn("ref_file", entry)
+                            self.assertIn("skill_consumption", plan["disabled"])
 
-    def test_enable_disable_restore_updates_real_plans_and_fingerprints(self):
-        self.initialize_both_namespaces()
+    def test_boolean_roundtrip_preserves_other_config_and_fingerprint(self):
+        self.initialize()
+        original = self.read_config()
         for skill in ("core-design", "core-apply"):
-            before = flow.canonical_fingerprint(self.read_config()[skill])
-            self.toggle(skill, True)
-            enabled = flow.canonical_fingerprint(self.read_config()[skill])
-            self.assertNotEqual(before, enabled)
-            self.toggle(skill, False)
-            self.assertEqual(flow.canonical_fingerprint(self.read_config()[skill]), before)
-            self.assertFalse(any(entry["key"] == "skill_consumption" for items in self.plan(skill)["orchestration_points"].values() for entry in items))
-            self.toggle(skill, True)
-            self.assertEqual(flow.canonical_fingerprint(self.read_config()[skill]), enabled)
+            before = flow.canonical_fingerprint(original[skill])
+            for enabled in (True, False, True, False):
+                ok, error = flow.update_config_value(skill, "skill_consumption", enabled)
+                self.assertTrue(ok, error)
+                config = self.read_config()
+                self.assertIs(self.entry(self.plan(skill, config[skill]))["enabled"], enabled)
+                self.assertEqual(flow.canonical_fingerprint(config[skill]) == before, not enabled)
+                for name, value in original[skill].items():
+                    if name != "skill_consumption":
+                        self.assertEqual(config[skill][name], value)
+        self.assertEqual(self.read_config(), original)
 
-    def test_expert_experience_stays_independent_and_closed_refs_are_unloaded(self):
-        self.initialize_both_namespaces()
-        self.toggle("core-design", True)
-        ok, error = flow.update_config_value("core-design", "expert_experience", False)
-        self.assertTrue(ok, error)
-        plan = self.plan("core-design")
+    def test_legacy_custom_objects_and_non_booleans_are_rejected(self):
+        for skill, slot in (("core-design", "post-generate"), ("core-apply", "pre-codegen")):
+            for value in ({"type": "reference", "file": "references/skill-consumption.md", "at": slot}, "true", 1, None):
+                with self.subTest(skill=skill, value=value):
+                    self.assertTrue(flow.validate_namespace({"skill_consumption": value}, skill))
+            for value in (False, True):
+                self.assertEqual(flow.validate_namespace({"skill_consumption": value}, skill), [])
+
+    def test_expert_experience_and_apply_consumption_are_independent(self):
+        plan = self.plan("core-design", {"expert_experience": False, "skill_consumption": True})
         self.assertIn("expert_experience", plan["disabled"])
-        self.assertFalse(any(entry.get("config_key") == "expert_experience" for entry in plan["steps"]))
-        closed = next(entry for entry in plan["steps"] if entry["key"] == "step-6")
-        self.assertFalse(closed["enabled"])
-        self.assertNotIn("ref_file", closed)
-        self.assertEqual(plan["orchestration_points"]["post-generate"][0]["key"], "skill_consumption")
-        self.assertEqual([entry["key"] for entry in self.plan("core-apply")["orchestration_points"]["pre-codegen"]], ["judgment_ladder"])
+        self.assertTrue(self.entry(plan)["enabled"])
+        self.assertFalse(self.entry(self.plan("core-apply", {}))["enabled"])
+        plan = self.plan("core-design", {"expert_experience": True, "skill_consumption": False})
+        self.assertTrue(any(e.get("config_key") == "expert_experience" for e in plan["steps"]))
+        self.assertFalse(self.entry(plan)["enabled"])
 
-    def test_reject_boolean_switch_and_wrong_slot_for_custom_consumption(self):
-        for skill, wrong_slot in (("core-design", "pre-codegen"), ("core-apply", "post-generate")):
-            self.assertTrue(flow.validate_namespace({"skill_consumption": True}, skill))
-            self.assertTrue(flow.validate_namespace({"skill_consumption": {
-                "type": "reference", "file": "references/skill-consumption.md", "at": wrong_slot}}, skill))
+    def test_registration_and_positions_match_sequential_flow(self):
+        for skill, count, position in (("core-design", 12, 8), ("core-apply", 16, 9)):
+            plan = self.plan(skill, {"skill_consumption": True})
+            self.assertEqual([e["key"] for e in plan["steps"]], [f"step-{i}" for i in range(count)])
+            self.assertEqual(plan["steps"][position]["config_key"], "skill_consumption")
+            label = "Phase" if skill == "core-design" else "Step"
+            self.assertEqual(plan["steps"][position]["skill_md_step"], f"{label} 9")
+            self.assertEqual(plan["steps"][position + 1]["skill_md_step"], f"{label} 10")
+            registrations = flow.get_built_in_steps(skill)
+            self.assertEqual(len({b["at"] for b in registrations}), len(registrations))
+            for registered in registrations:
+                enabled = self.plan(skill, {registered["key"]: True})
+                entry = next(e for e in enabled["steps"] if e.get("config_key") == registered["key"])
+                self.assertEqual(entry["key"], registered["at"])
+                self.assertEqual(entry["skill_md_step"], registered["skill_md_step"])
 
-    def test_same_slot_custom_entries_remain_when_consumption_is_disabled(self):
-        self.initialize_both_namespaces()
-        self.toggle("core-apply", True)
-        config = self.read_config()
+    def test_custom_slots_continue_independently(self):
         other = {"type": "reference", "file": "references/judgment-ladder.md", "at": "pre-codegen", "order": 2}
-        config["core-apply"]["judgment_ladder"] = other
-        self.config.write_text(json.dumps(config, ensure_ascii=False, indent=2), encoding="utf-8")
-        self.toggle("core-apply", False)
-        entries = self.plan("core-apply")["orchestration_points"]["pre-codegen"]
-        self.assertEqual([entry["key"] for entry in entries], ["judgment_ladder"])
-        self.assertEqual(self.read_config()["core-apply"]["judgment_ladder"], other)
-        self.assertTrue(flow.is_all_default_plan(self.plan("core-design")))
+        for enabled in (True, False):
+            plan = self.plan("core-apply", {"skill_consumption": enabled, "judgment_ladder": other})
+            entries = plan["orchestration_points"]["pre-codegen"]
+            self.assertEqual([e["key"] for e in entries], ["judgment_ladder"])
+            self.assertEqual(entries[0]["file"], other["file"])
+            self.assertIs(self.entry(plan)["enabled"], enabled)
 
 
 if __name__ == "__main__":

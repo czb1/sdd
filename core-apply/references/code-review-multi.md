@@ -1,4 +1,4 @@
-# Step 11: Code Review（多仓模式指令）
+# Step 12: Code Review（多仓模式指令）
 
 > 本文件为可配置步骤 `code_review` 的指令文件（多仓版）。仅在执行计划含 `key=code_review` 条目时被 Read。
 > 指令来源：`references/multi-repo.md` 的 **M-4**（多仓下 Code Review 的唯一执行权威，与 multi-repo.md 内容一致）。
@@ -6,13 +6,13 @@
 
 ## 多仓下的执行位置
 
-多仓模式下，Code Review 由 **M-4** 承担（替代单仓 Step 11 code-review）。M-3（各仓 L4 验证）通过后，主会话分派 M-4 子代理并行执行各仓 Code Review：
+多仓模式下，Code Review 由 **M-4** 承担（替代单仓 Step 12 code-review）。M-3（各仓 L4 验证）通过后，主会话分派 M-4 子代理并行执行各仓 Code Review：
 
 - M-4: 各仓Code Review（subagent并行，替代Code Review环节）
 
 ## M-4 执行指令
 
-**Replaces**: steps.md Step 9 code-review（单仓步骤）
+**Replaces**: SKILL.md Step 12 code-review（单仓步骤）
 **Input**: 各仓代码文件（仅增量变更文件）
 
 ### 1. 对每个涉及仓启动子代理执行Code Review

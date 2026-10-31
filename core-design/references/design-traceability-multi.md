@@ -1,16 +1,16 @@
-# Phase 9: 各仓设计追溯验证（多仓模式指令文件）
+# Phase 10: 各仓设计追溯验证（多仓模式指令文件）
 
 > 本文件为可配置步骤 `design_traceability` 的指令文件（多仓版）。仅在执行计划含 `key=design_traceability` 条目时被 Read。
 > 指令来源：`references/multi-repo.md` 的 **M-3a**（多仓下设计追溯验证的唯一执行权威）。
 
 ## 多仓下的执行位置
 
-多仓模式下，设计追溯验证由 **M-3a** 承担（替代单仓 Phase 9）。M-2（各仓按仓生成）完成后，主会话分派 M-3a 子代理并行执行各仓 L2/L3 验证。
+多仓模式下，设计追溯验证由 **M-3a** 承担（替代单仓 Phase 10）。M-2（各仓按仓生成）完成后，主会话分派 M-3a 子代理并行执行各仓 L2/L3 验证。
 
 ## M-3a 执行指令
 
 **【执行模式】**: subagent（强制）— 此步骤必须通过子代理执行，**禁止主会话直接执行**
-**Replaces**: 单仓 Phase 9 design-traceability
+**Replaces**: 单仓 Phase 10 design-traceability
 **Input**: 各仓 delta_design.md、tasks.md、delta_test_design.md
 **同步/异步**: sync
 
@@ -21,7 +21,7 @@
 
 **【强制】禁止主会话直接执行追溯验证** — 多仓场景下，各仓的 L2/L3 验证必须在子代理中并行执行。主会话直接执行等于将各仓串行化，违反多仓并行设计。
 
-**【强制】Phase 9 必须调用 cross-doc-checker，禁止调用 design-doc-reviewer 替代** — 两个 skill 的 CHECK-ID 集合完全不同，不可互相替代。
+**【强制】Phase 10 必须调用 cross-doc-checker，禁止调用 design-doc-reviewer 替代** — 两个 skill 的 CHECK-ID 集合完全不同，不可互相替代。
 
 **Execution**:
 1. **【强制】使用 Agent tool 启动子代理**（与 M-2 相同的调用模式）：
@@ -97,9 +97,9 @@
 
 ## 衔接豁免（多仓模式）
 
-- **`design_traceability` 关闭时**：跳过 M-3a，M-2 完成后直接进入 M-3b（如 `design_review` 开启）或 cleanup（如 `design_review` 也关闭）。"Phase 9 必须调用 cross-doc-checker 禁止用 design-doc-reviewer 替代"强制位豁免。"禁止主会话直接执行"强制位豁免。
+- **`design_traceability` 关闭时**：跳过 M-3a，Phase 9 完成或跳过后直接进入 M-3b（如 `design_review` 开启）或 cleanup（如 `design_review` 也关闭）。"Phase 10 必须调用 cross-doc-checker 禁止用 design-doc-reviewer 替代"强制位豁免。"禁止主会话直接执行"强制位豁免。
 - **`design_review` 关闭但 `design_traceability` 开启时**：M-3a 通过后直接进入 cleanup，不进入 M-3b。"M-3a 全过后才执行 M-3b"依赖不阻断（因 M-3b 被跳过）。
 
 ## 关闭语义
 
-**执行计划不含 `design_traceability` 条目时**：跳过 M-3a 全段，各仓 L2/L3 追溯验证无人校验。M-2 完成后直接进入 M-3b（如 `design_review` 开启）或 cleanup。
+**执行计划不含 `design_traceability` 条目时**：跳过 M-3a 全段，各仓 L2/L3 追溯验证无人校验。Phase 9 完成或跳过后直接进入 M-3b（如 `design_review` 开启）或 cleanup。

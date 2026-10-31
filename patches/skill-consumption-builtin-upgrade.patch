@@ -1,0 +1,222 @@
+--- a/core-shared/scripts/flow_config.py
++++ b/core-shared/scripts/flow_config.py
+@@ -16,3 +16,3 @@
+ configurable built-in steps; FIXED_STEPS_BY_SKILL declares each skill's
+-full ordered fixed-step flow (core-apply 15 steps, core-init 7 steps).
++full ordered fixed-step flow (core-apply 16 steps, core-init 7 steps).
+
+@@ -81,7 +81,19 @@
+         {
++            "key": "skill_consumption",
++            "at": "step-9",
++            "default": False,
++            "depends_on": [],
++            "skill_md_step": "Step 9",
++            "description": "任务 Skill 准备与消费",
++            "ref_file": {
++                "single": "references/skill-consumption.md",
++                "multi": "references/skill-consumption.md",
++            },
++        },
++        {
+             "key": "l4_review",
+-            "at": "step-10",
+-            "default": True,
+-            "depends_on": [],
+-            "skill_md_step": "Step 10",
++            "at": "step-11",
++            "default": True,
++            "depends_on": [],
++            "skill_md_step": "Step 11",
+             "description": "L4 实现追溯验证",
+@@ -94,6 +106,6 @@
+             "key": "code_review",
+-            "at": "step-11",
+-            "default": True,
+-            "depends_on": [],
+-            "skill_md_step": "Step 11",
++            "at": "step-12",
++            "default": True,
++            "depends_on": [],
++            "skill_md_step": "Step 12",
+             "description": "Code Review",
+@@ -106,6 +118,6 @@
+             "key": "unit_test",
+-            "at": "step-12",
+-            "default": True,
+-            "depends_on": [],
+-            "skill_md_step": "Step 12",
++            "at": "step-13",
++            "default": True,
++            "depends_on": [],
++            "skill_md_step": "Step 13",
+             "description": "单元测试",
+@@ -118,6 +130,6 @@
+             "key": "l5_coverage",
+-            "at": "step-13",
++            "at": "step-14",
+             "default": True,
+             "depends_on": ["unit_test"],
+-            "skill_md_step": "Step 13",
++            "skill_md_step": "Step 14",
+             "description": "L5 UT 覆盖度验证",
+@@ -130,6 +142,6 @@
+             "key": "completion_report",
+-            "at": "step-14",
+-            "default": True,
+-            "depends_on": [],
+-            "skill_md_step": "Step 14",
++            "at": "step-15",
++            "default": True,
++            "depends_on": [],
++            "skill_md_step": "Step 15",
+             "description": "完成或暂停时展示状态",
+@@ -338,7 +350,7 @@
+     ],
+-    # core-design: 7 built-in steps（A 档 6 键 + B 档 1 键）。
+-    # SKILL.md 采用 "Phase 1~11" 连续编号，与 steps.md 序号一一对应——
++    # core-design: 8 built-in steps（A 档 7 键 + B 档 1 键）。
++    # SKILL.md 采用 "Phase 1~12" 连续编号，与 steps.md 序号一一对应——
+     # `at` 使用 0-based EXECUTION 位置（steps.md 序号 − 1 = Phase 编号 − 1），
+     # 编号约定见 skeleton-core-design.md §5：step-N = Phase 编号 − 1。
+-    # 内容型 3 键（version_check / read_similar / expert_experience）单多仓共用
++    # 内容型 4 键（version_check / read_similar / expert_experience / skill_consumption）单多仓共用
+     # 单文件；通道型 3 键（design_traceability / design_review / cleanup）按
+@@ -399,7 +411,19 @@
+         {
++            "key": "skill_consumption",
++            "at": "step-8",
++            "default": False,
++            "depends_on": [],
++            "skill_md_step": "Phase 9",
++            "description": "任务 Skill 查找、确认、安装与关联",
++            "ref_file": {
++                "single": "references/skill-consumption.md",
++                "multi": "references/skill-consumption.md",
++            },
++        },
++        {
+             "key": "design_traceability",
+-            "at": "step-8",
+-            "default": True,
+-            "depends_on": [],
+-            "skill_md_step": "Phase 9",
++            "at": "step-9",
++            "default": True,
++            "depends_on": [],
++            "skill_md_step": "Phase 10",
+             "description": "设计追溯验证（cross-doc-checker L2/L3，subagent 强制）",
+@@ -412,6 +436,6 @@
+             "key": "design_review",
+-            "at": "step-9",
+-            "default": True,
+-            "depends_on": [],
+-            "skill_md_step": "Phase 10",
++            "at": "step-10",
++            "default": True,
++            "depends_on": [],
++            "skill_md_step": "Phase 11",
+             "description": "design-doc-reviewer 文档审查（subagent 强制）",
+@@ -424,6 +448,6 @@
+             "key": "cleanup",
+-            "at": "step-10",
+-            "default": True,
+-            "depends_on": [],
+-            "skill_md_step": "Phase 11",
++            "at": "step-11",
++            "default": True,
++            "depends_on": [],
++            "skill_md_step": "Phase 12",
+             "description": "清理临时文件（brainstorming/design.md/clarification_summary.json/drafts/downloads 等）",
+@@ -638,8 +662,9 @@
+     {"key": "step-8", "skill_md_step": "Step 8", "description": "展示当前进度"},
+-    {"key": "step-9", "skill_md_step": "Step 9", "description": "代码生成任务（含 pre-codegen 子环节）"},
+-    {"key": "step-10", "skill_md_step": "Step 10", "description": "Gate-1 L4 实现追溯验证"},
+-    {"key": "step-11", "skill_md_step": "Step 11", "description": "Code Review"},
+-    {"key": "step-12", "skill_md_step": "Step 12", "description": "单元测试"},
+-    {"key": "step-13", "skill_md_step": "Step 13", "description": "Gate-2 L5 UT 覆盖度验证"},
+-    {"key": "step-14", "skill_md_step": "Step 14", "description": "完成或暂停时展示状态"},
++    {"key": "step-9", "skill_md_step": "Step 9", "description": "任务 Skill 准备与消费（默认关闭）"},
++    {"key": "step-10", "skill_md_step": "Step 10", "description": "代码生成任务（含 pre-codegen 子环节）"},
++    {"key": "step-11", "skill_md_step": "Step 11", "description": "Gate-1 L4 实现追溯验证"},
++    {"key": "step-12", "skill_md_step": "Step 12", "description": "Code Review"},
++    {"key": "step-13", "skill_md_step": "Step 13", "description": "单元测试"},
++    {"key": "step-14", "skill_md_step": "Step 14", "description": "Gate-2 L5 UT 覆盖度验证"},
++    {"key": "step-15", "skill_md_step": "Step 15", "description": "完成或暂停时展示状态"},
+ ]
+@@ -647,3 +672,3 @@
+ # Per-skill fixed step lists (P3 generalization). core-apply keeps the
+-# historical 15-step flow above; core-init registers its own 8-step flow.
++# 16-step flow above; core-init registers its own 8-step flow.
+ # Convention (skeleton-core-init.md §5): step-<n> = 0-based EXECUTION position
+@@ -688,7 +713,7 @@
+     ],
+-    # core-design: 11 步（SKILL.md "Phase 1~11" 连续编号，steps.md 序号 1~11）。
++    # core-design: 12 步（SKILL.md "Phase 1~12" 连续编号，steps.md 序号 1~12）。
+     # key 按 0-based EXECUTION 位置（steps.md 序号 − 1）；skill_md_step 保留
+-    # SKILL.md 原编号标签（Phase 1~11）。Phase 8 在多仓模式下由 M-2 替代
+-    # （multi-repo.md M-2 各仓按仓生成），Phase 9→M-3a、Phase 10→M-3b、
+-    # Phase 11→多仓 cleanup，但 FIXED_STEPS 仍按 steps.md 序号统一编号。
++    # SKILL.md 原编号标签（Phase 1~12）。Phase 8 在多仓模式下由 M-2 替代
++    # （multi-repo.md M-2 各仓按仓生成），Phase 9→主会话任务能力关联、Phase 10→M-3a、Phase 11→M-3b、
++    # Phase 12→多仓 cleanup，但 FIXED_STEPS 仍按 steps.md 序号统一编号。
+     # 编号约定见 skeleton-core-design.md §5：step-N = Phase 编号 − 1。
+@@ -701,7 +726,8 @@
+         {"key": "step-5", "skill_md_step": "Phase 6", "description": "读取 brainstorming design.md + impl_questions 确认"},
+-        {"key": "step-6", "skill_md_step": "Phase 7", "description": "获取专家经验（paradigm-exp-use）"},
++        {"key": "step-6", "skill_md_step": "Phase 7", "description": "准备已有项目经验及任务能力查找上下文"},
+         {"key": "step-7", "skill_md_step": "Phase 8", "description": "生成设计文档（delta_design/tasks/delta_test_design）+ 剩余 artifact 循环 T5.2（详见 artifact-generation.md §8.7，内置 5 artifact 生成完成后强制执行，禁止跳过：调 load_schema 获取清单→筛除内置 5 artifact→DAG 分层过滤只生成 requires 含 delta_design 或更下游的非内置 artifact）；多仓 M-2 替代"},
+-        {"key": "step-8", "skill_md_step": "Phase 9", "description": "设计追溯验证（cross-doc-checker L2/L3，subagent）"},
+-        {"key": "step-9", "skill_md_step": "Phase 10", "description": "design-doc-reviewer 审查（subagent）"},
+-        {"key": "step-10", "skill_md_step": "Phase 11", "description": "清理临时文件（brainstorming/design.md/clarification_summary.json/drafts/downloads 等）"},
++        {"key": "step-8", "skill_md_step": "Phase 9", "description": "任务 Skill 查找、确认、安装与关联（默认关闭）"},
++        {"key": "step-9", "skill_md_step": "Phase 10", "description": "设计追溯验证（cross-doc-checker L2/L3，subagent）"},
++        {"key": "step-10", "skill_md_step": "Phase 11", "description": "design-doc-reviewer 审查（subagent）"},
++        {"key": "step-11", "skill_md_step": "Phase 12", "description": "清理临时文件（brainstorming/design.md/clarification_summary.json/drafts/downloads 等）"},
+     ],
+@@ -2082,10 +2108,2 @@
+   "core-apply": {
+-    // ---- 可选自定义步骤（默认关闭；取消下方整块注释即启用）----
+-    // "skill_consumption": {
+-    //   "type": "reference",
+-    //   "file": "references/skill-consumption.md",
+-    //   "at": "pre-codegen",
+-    //   "order": 0,
+-    //   "description": "按任务读取已关联能力，按需批量补齐后消费"
+-    // },
+     // ---- 内置步骤开关（true/false）----
+@@ -2093,7 +2111,8 @@
+     "show_progress": false,  // Step 8 展示当前进度（默认关闭）
+-    "l4_review": true,      // Step 10 L4 实现追溯验证
+-    "code_review": true,    // Step 11 Code Review
+-    "unit_test": true,      // Step 12 单元测试（l5_coverage 依赖它，关闭则 L5 自动降级）
+-    "l5_coverage": true,     // Step 13 L5 UT 覆盖度验证
+-    "completion_report": true, // Step 14 完成或暂停时展示状态
++    "skill_consumption": false, // Step 9 任务 Skill 准备与消费（默认关闭）
++    "l4_review": true,      // Step 11 L4 实现追溯验证
++    "code_review": true,    // Step 12 Code Review
++    "unit_test": true,      // Step 13 单元测试（l5_coverage 依赖它，关闭则 L5 自动降级）
++    "l5_coverage": true,     // Step 14 L5 UT 覆盖度验证
++    "completion_report": true, // Step 15 完成或暂停时展示状态
+     // ---- 自定义步骤示例（取消注释即启用；注意：最后一个有效键不可带尾逗号）----
+@@ -2122,10 +2141,2 @@
+   // "core-design": {
+-  //   // ---- 可选自定义步骤（默认关闭；取消下方整块注释即启用）----
+-  //   // "skill_consumption": {
+-  //   //   "type": "reference",
+-  //   //   "file": "references/skill-consumption.md",
+-  //   //   "at": "post-generate",
+-  //   //   "order": 0,
+-  //   //   "description": "任务形成后查找、确认、安装并关联 Skill 与经验"
+-  //   // },
+   //   // ---- 内置步骤开关（true/false）----
+@@ -2135,5 +2146,6 @@
+   //   "expert_experience": true,   // Phase 7 准备已有项目经验及任务能力查找上下文（不独立拉取经验，纯增益）
+-  //   "design_traceability": true, // Phase 9 设计追溯验证（cross-doc-checker L2/L3，subagent 强制）
+-  //   "design_review": true,       // Phase 10 design-doc-reviewer 审查（subagent 强制）
+-  //   "cleanup": true              // Phase 11 清理临时文件
++  //   "skill_consumption": false, // Phase 9 任务 Skill 查找、确认、安装与关联（默认关闭）
++  //   "design_traceability": true, // Phase 10 设计追溯验证（cross-doc-checker L2/L3，subagent 强制）
++  //   "design_review": true,       // Phase 11 design-doc-reviewer 审查（subagent 强制）
++  //   "cleanup": true              // Phase 12 清理临时文件
+   //   // ---- 自定义步骤示例（取消注释即启用；at 取 core-design 编排点）----

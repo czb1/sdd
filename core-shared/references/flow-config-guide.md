@@ -52,21 +52,22 @@
 |--------|---------|------|------|
 | version_check | Step 1 版本检查 | true | — |
 | show_progress | Step 8 展示当前进度 | **false** | — |
-| l4_review | Step 10 L4 实现追溯验证 | true | — |
-| code_review | Step 11 Code Review | true | — |
-| unit_test | Step 12 单元测试 | true | — |
-| l5_coverage | Step 13 L5 UT 覆盖度验证 | true | unit_test（关闭 UT 则 L5 自动降级） |
-| completion_report | Step 14 完成或暂停时展示状态 | true | — |
+| skill_consumption | Step 9 | **false** | — |
+| l4_review | Step 11 L4 实现追溯验证 | true | — |
+| code_review | Step 12 Code Review | true | — |
+| unit_test | Step 13 单元测试 | true | — |
+| l5_coverage | Step 14 L5 UT 覆盖度验证 | true | unit_test（关闭 UT 则 L5 自动降级） |
+| completion_report | Step 15 完成或暂停时展示状态 | true | — |
 
 **编排点**（core-apply 的 SKILL.md 预置插槽）：
 
 | 编排点 | 粒度 | 位置 |
 |--------|------|------|
-| pre-codegen | task | Step 9 的 9.3 和 9.4 之间（任务循环内） |
-| post-codegen | change | Step 9 之后 |
-| post-l4 | change | Step 10 之后 |
-| post-review | change | Step 11 之后 |
-| post-ut | change | Step 12 之后 |
+| pre-codegen | task | Step 10 的 10.3 和 10.4 之间（任务循环内） |
+| post-codegen | change | Step 10 之后 |
+| post-l4 | change | Step 11 之后 |
+| post-review | change | Step 12 之后 |
+| post-ut | change | Step 13 之后 |
 
 ### 4.2 core-init
 
@@ -168,9 +169,10 @@
 | fetch_rules | Phase 2 code-rule 拉取（Step 1~3，**B 档双层语义**：GATE 不受控） | true | — |
 | read_similar | Phase 5 读取相似需求参考归档 | true | — |
 | expert_experience | Phase 7 准备已有设计经验 | true | — |
-| design_traceability | Phase 9 设计追溯验证（cross-doc-checker L2/L3，subagent 强制） | true | — |
-| design_review | Phase 10 design-doc-reviewer 文档审查（subagent 强制） | true | — |
-| cleanup | Phase 11 清理临时文件 | true | — |
+| skill_consumption | Phase 9 | **false** | — |
+| design_traceability | Phase 10 设计追溯验证（cross-doc-checker L2/L3，subagent 强制） | true | — |
+| design_review | Phase 11 design-doc-reviewer 文档审查（subagent 强制） | true | — |
+| cleanup | Phase 12 清理临时文件 | true | — |
 
 **编排点**（core-design 的 SKILL.md 预置插槽）：
 
@@ -181,15 +183,15 @@
 | post-code-understanding | change | Phase 4 代码理解后 |
 | pre-generate | change | Phase 8 生成前（M-2 启动前） |
 | post-generate | change | Phase 8 生成后（M-2 全部仓完成后） |
-| post-traceability | change | Phase 9 追溯验证后（M-3a 全部仓完成后） |
-| post-design-review | change | Phase 10 审查后（M-3b 全部仓完成后） |
-| post-cleanup | change | Phase 11 清理后 |
+| post-traceability | change | Phase 10 追溯验证后（M-3a 全部仓完成后） |
+| post-design-review | change | Phase 11 审查后（M-3b 全部仓完成后） |
+| post-cleanup | change | Phase 12 清理后 |
 
 **关闭语义**：
 
 - **双层语义（fetch_rules）**：`fetch_rules` 关闭仅跳过 code-rule 拉取（Step 1~3），**Phase 2.2 的 GATE（design-principles.md / design-views.md）不受开关控制**，仍无条件加载——即关闭 `fetch_rules` 后设计文档生成仍受原则/视图约束保护，但语言级规范集合为空
-- **design_traceability / design_review**：单仓承载 Phase 9/10，多仓承载 M-3a/M-3b（ref_file.multi 指向独立 `*-multi.md`）。关闭时对应阶段/关卡豁免（含"必经关卡"、"禁止主会话直接执行"、转换门控等强制位），指令文件不被 Read
-  - `design_traceability=false` 但 `design_review=true`：M-2 完成后直接进入 M-3b，"M-3a 全过后才执行 M-3b"依赖随 `design_traceability` 关闭豁免
+- **design_traceability / design_review**：单仓承载 Phase 10/11，多仓承载 M-3a/M-3b（ref_file.multi 指向独立 `*-multi.md`）。关闭时对应阶段/关卡豁免（含"必经关卡"、"禁止主会话直接执行"、转换门控等强制位），指令文件不被 Read
+  - `design_traceability=false` 但 `design_review=true`：Phase 9 完成或跳过后进入 M-3b，"M-3a 全过后才执行 M-3b"依赖随 `design_traceability` 关闭豁免
 - `cleanup=false`：跳过清理阶段，**须显式记录"cleanup 已关闭，临时文件残留"**，残留由用户或后续人工处理（不阻断流程收尾）；关闭时"最后阶段禁止跳过"自动解除
 - `read_similar=false`：跳过 Phase 5 相似需求参考读取，delta_design 无历史设计参考
 - `expert_experience=false`：跳过 Phase 7 已有设计经验准备，不加载对应指令文件；直接进入 Phase 8。
@@ -315,7 +317,7 @@
 
 ## 9. 默认安全：什么都不配 = 当前行为完全兼容
 
-配置文件不存在时，内置步骤按出厂默认启停（core-apply 默认开启：version_check/l4_review/code_review/unit_test/l5_coverage/completion_report、**默认关闭：show_progress**；core-init 默认开启：version_check/multi_analysis/check_sync/execute_sync、**默认关闭：okf_knowledge_fetch**；core-explore 默认开启：version_check/knowledge_precheck/brainstorming/find_similar/l1_review/explore_review/cleanup_temp、**默认关闭：req_refine**；core-design 默认全开：version_check/fetch_rules/read_similar/expert_experience/design_traceability/design_review/cleanup；core-archive 默认全开：version_check/core_verify/check_artifacts/check_tasks/backfill/spec_sync/show_summary/push_mr）、无自定义步骤——等价于今天的全量行为（首次构建执行计划时会先提供一次"生成模板 / 继续默认"的配置机会，选择继续默认后即与今天完全一致）。即使配置文件存在，未配置的 skill 顶层对象同样全默认，各 skill 配置互不干扰。**向后兼容是零成本的。**
+配置文件不存在时，内置步骤按出厂默认启停（core-apply 默认开启：version_check/l4_review/code_review/unit_test/l5_coverage/completion_report、**默认关闭：show_progress/skill_consumption**；core-init 默认开启：version_check/multi_analysis/check_sync/execute_sync、**默认关闭：okf_knowledge_fetch**；core-explore 默认开启：version_check/knowledge_precheck/brainstorming/find_similar/l1_review/explore_review/cleanup_temp、**默认关闭：req_refine**；core-design 默认开启：version_check/fetch_rules/read_similar/expert_experience/design_traceability/design_review/cleanup、**默认关闭：skill_consumption**；core-archive 默认全开：version_check/core_verify/check_artifacts/check_tasks/backfill/spec_sync/show_summary/push_mr）、无自定义步骤——等价于今天的全量行为（首次构建执行计划时会先提供一次"生成模板 / 继续默认"的配置机会，选择继续默认后即与今天完全一致）。即使配置文件存在，未配置的 skill 顶层对象同样全默认，各 skill 配置互不干扰。**向后兼容是零成本的。**
 
 ## 10. 配置示例（core-apply 命名空间）
 

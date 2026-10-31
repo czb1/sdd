@@ -1,8 +1,8 @@
-# Step 11: Code Review（单仓模式指令）
+# Step 12: Code Review（单仓模式指令）
 
 > 本文件为可配置步骤 `code_review` 的指令文件（单仓版）。仅在执行计划含 `key=code_review` 条目时被 Read。
 
-**检查范围**：代码生成任务（Step 9）产出的变更文件（增量，禁止全量扫描）。
+**检查范围**：代码生成任务（Step 10）产出的变更文件（增量，禁止全量扫描）。
 
 **【执行模式】**: subagent（强制）— 此步骤必须通过子代理执行，禁止主会话直接执行
 **加载技能**: ["codecheck-for-cleancode", "cwd-audit"]

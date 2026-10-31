@@ -1,8 +1,8 @@
-# Phase 11: 清理临时文件（单仓模式指令文件）
+# Phase 12: 清理临时文件（单仓模式指令文件）
 
 > 本文件为可配置步骤 `cleanup` 的指令文件（单仓版）。仅在执行计划含 `key=cleanup` 条目时被 Read。
 
-**执行位置**：Phase 10（design-doc-reviewer 审查）完成后执行。如 Phase 9/10 被关闭，则 Phase 8 完成后执行。
+**执行位置**：Phase 11（design-doc-reviewer 审查）完成后执行。如 Phase 10/11 被关闭，则 Phase 9 完成或跳过后执行。
 
 **动作**：清理 core-explore 阶段保留的跨阶段引用文件和 brainstorming 临时文件。 仅删除已确认的临时产物；仍被持久文档引用的文件必须保留，含保留文件的目录不得整目录删除，下方删除示例及清理验证均须排除这些保留项。
 
@@ -107,12 +107,12 @@
 
 ### 8. 执行时机
 
-- 在 Phase 10 完成后执行（如 Phase 10 被关闭，则 Phase 9 完成后执行；如 Phase 9/10 均被关闭，则 Phase 8 完成后执行）
+- 在 Phase 11 完成后执行（如 Phase 11 被关闭，则 Phase 10 完成后执行；如 Phase 10/11 均被关闭，则 Phase 9 完成或跳过后执行）
 - 确保 design.md 被用于生成 delta_design.md 后再清理
 - 确保 clarification_summary.json 已被 design-doc-reviewer 读取后再清理（如 design_review 被关闭，则可直接清理）
 
 ## 关闭语义
 
-**执行计划不含 `cleanup` 条目时**：跳过所有清理操作，临时文件残留（.brainstorming_output / design.md / clarification_summary.json / expert_experience.md / downloads/ / workflow/）。"Phase 11 是最后一步禁止跳过"强制位随关闭豁免。
+**执行计划不含 `cleanup` 条目时**：跳过所有清理操作，临时文件残留（.brainstorming_output / design.md / clarification_summary.json / expert_experience.md / downloads/ / workflow/）。"Phase 12 是最后一步禁止跳过"强制位随关闭豁免。
 
 **【关闭风险提示】**：关闭 cleanup 意味着临时文件保留不清理。残留文件是 explore/design 阶段产物，不导致 core-apply 断链（core-apply 禁止删除列表本来要求保留部分文件），但会污染 change 目录。需显式记录"cleanup 已关闭，临时文件残留"后输出执行总结并宣布流程完毕。
