@@ -1,44 +1,44 @@
-# Step 9: 代码生成任务（指令文件）
+# Step 10: 代码生成任务（指令文件）
 
-> 本文件为 Step 9 代码生成环节的指令文件（**单仓专用**），**无条件加载**（GATE:REF 标记，同 Step 7 code-gen-principles.md 模式）。Step 9 执行每个代码生成任务时按本文件流程执行。
+> 本文件为 Step 10 代码生成环节的指令文件（**单仓专用**），**无条件加载**（GATE:REF 标记，同 Step 7 code-gen-principles.md 模式）。Step 10 执行每个代码生成任务时按本文件流程执行。
 
-## Step 9 主循环
+## Step 10 主循环
 
 > **测试策略**：进入任务循环前，读取 tasks.md 头部的 `测试策略` 字段（tdd / test-after；如果字段不存在则默认为 test-after 策略）。
 
-**【强制】Step 9 循环对象边界 —— tasks.md 章节归属映射**：
+**【强制】Step 10 循环对象边界 —— tasks.md 章节归属映射**：
 
-Step 9 的循环对象**仅限** tasks.md 的 `## 代码生成任务` 章节（1.x 任务）。tasks.md 其余章节**不属于** Step 9 循环对象，对应可配置步骤关闭时**禁止**在 Step 9 循环中执行：
+Step 10 的循环对象**仅限** tasks.md 的 `## 代码生成任务` 章节（1.x 任务）。tasks.md 其余章节**不属于** Step 10 循环对象，对应可配置步骤关闭时**禁止**在 Step 10 循环中执行：
 
 | tasks.md 章节 | 任务编号 | 归属步骤 | 对应可配置键 | 关闭时行为 |
 |---------------|---------|---------|-------------|-----------|
-| `## 代码生成任务` | 1.x | **Step 9**（本步骤） | —（无条件加载） | 不适用——Step 9 是本循环本体 |
-| `## Code Review 任务` | 2.x | Step 11 | `code_review` | 执行计划 steps 数组**不含** `config_key=code_review` 条目 → **禁止在 Step 9 循环中执行 2.x 任务**（规范检查/内存安全检查），整章节跳过 |
-| `## 单元测试任务` | 3.x | Step 12 | `unit_test` | 执行计划 steps 数组**不含** `config_key=unit_test` 条目 → **禁止在 Step 9 循环中执行 3.x 任务**（UT生成/修复/覆盖率/断言/报告），整章节跳过 |
+| `## 代码生成任务` | 1.x | **Step 10**（本步骤） | —（无条件加载） | 不适用——Step 10 是本循环本体 |
+| `## Code Review 任务` | 2.x | Step 12 | `code_review` | 执行计划 steps 数组**不含** `config_key=code_review` 条目 → **禁止在 Step 10 循环中执行 2.x 任务**（规范检查/内存安全检查），整章节跳过 |
+| `## 单元测试任务` | 3.x | Step 13 | `unit_test` | 执行计划 steps 数组**不含** `config_key=unit_test` 条目 → **禁止在 Step 10 循环中执行 3.x 任务**（UT生成/修复/覆盖率/断言/报告），整章节跳过 |
 
-- **判定依据**：`docs/.flow_context/execution-plan-core-apply.json` 的 `steps` 数组。含对应 `config_key`（`type=built_in`，`enabled=true`）条目 → 该章节任务由对应可配置步骤（Step 11/12）在其指令文件中执行，**不是 Step 9 循环对象**；不含 → 该章节整体跳过（指令文件不 Read，章节任务亦不执行）
-- **Step 9 循环内禁止**：执行 `## Code Review 任务` / `## 单元测试任务` 章节的任何 `- [ ]` 任务（包括但不限于 codecheck/cwd-audit/UT 生成等）
-- **Step 9 无待办**（1.x 全部 `- [x]`）且 Step 10~14 对应可配置步骤关闭 → 直接进入下一步/结束流程，**不得**将 2.x/3.x 未完成任务作为 Step 9 循环对象执行
+- **判定依据**：`docs/.flow_context/execution-plan-core-apply.json` 的 `steps` 数组。含对应 `config_key`（`type=built_in`，`enabled=true`）条目 → 该章节任务由对应可配置步骤（Step 12/13）在其指令文件中执行，**不是 Step 10 循环对象**；不含 → 该章节整体跳过（指令文件不 Read，章节任务亦不执行）
+- **Step 10 循环内禁止**：执行 `## Code Review 任务` / `## 单元测试任务` 章节的任何 `- [ ]` 任务（包括但不限于 codecheck/cwd-audit/UT 生成等）
+- **Step 10 无待办**（1.x 全部 `- [x]`）且 Step 11~15 对应可配置步骤关闭 → 直接进入下一步/结束流程，**不得**将 2.x/3.x 未完成任务作为 Step 10 循环对象执行
 
-有待办 1.x 任务时，先按 SKILL.md 的执行期规则处理启用 reference 条目声明的主会话前置准备（若有），再进入任务循环；任务级动作不提前执行。
+有待办 1.x 任务时，启用的内置准备步骤已由 Step 9 执行一次；按根执行计划在下方 10.3.4 执行每任务动作，不重新执行全量准备。
 
 For each pending task in `## 代码生成任务` section:
-1. **针对当前任务进行代码理解**（详见下方 9.1）
-2. **解析设计锚点**（详见下方 9.2）
-3. **分阶段展示设计信息**（P0 → P1 → P2，详见下方 9.3），随后按 9.3.5 调度 pre-codegen 插槽
-4. **代码生成原则自检**（对照 code-gen-principles.md C-1~C-15，详见下方 9.4）
-5. 执行代码生成（详见下方 9.5；测试策略为 `test-after` 时，按照9.5.1进行执行，否则按照9.5.2执行）
+1. **针对当前任务进行代码理解**（详见下方 10.1）
+2. **解析设计锚点**（详见下方 10.2）
+3. **分阶段展示设计信息**（P0 → P1 → P2，详见下方 10.3），随后依次执行 10.3.4 内置检查点与 10.3.5 通用 pre-codegen 插槽
+4. **代码生成原则自检**（对照 code-gen-principles.md C-1~C-15，详见下方 10.4）
+5. 执行代码生成（详见下方 10.5；测试策略为 `test-after` 时，按照10.5.1进行执行，否则按照10.5.2执行）
 6. 标记任务完成: `- [ ]` → `- [x]`
 7. Continue to next task
 
-### 9.1 代码理解
+### 10.1 代码理解
 
 针对当前任务，有指向性地理解相关代码。不同于统一查看，任务级代码理解：
 - 结合具体任务需求，只查看当前任务相关的代码
 - 在不了解任务的情况下盲目查看全部代码效率低下
 - 看完即用，记忆更清晰，减少上下文浪费
 
-**9.1.1 尝试调用 CodeBase 工具**
+**10.1.1 尝试调用 CodeBase 工具**
 
 **统一尝试调用策略**：
 - 无论 OpenCode 还是 ClaudeCode，都**先尝试调用** CodeBase 工具
@@ -72,7 +72,7 @@ For each pending task in `## 代码生成任务` section:
 | missing | CodeBase 可用但无数据 | 回退到 read/grep/glob |
 | not_installed | CodeBase 工具不可用 | 直接使用 read/grep/glob |
 
-**9.1.2 回退到传统工具（必须）**
+**10.1.2 回退到传统工具（必须）**
 
 **当 CodeBase 不可用或无结果时，使用以下替代**：
 
@@ -82,14 +82,14 @@ For each pending task in `## 代码生成任务` section:
 | CodeSemanticSearch | grep | `grep -r "关键词"` 定位文件 |
 | GetFeatureTree | glob + grep | `glob "**/module/**/*.py"` + 分析 |
 
-**9.1.3 必须通过 read 验证**
+**10.1.3 必须通过 read 验证**
 
 **验证要求**：
 - 无论使用哪种工具，**最终必须通过 read 实际读取代码进行验证**
 - CodeBase 结果只是参考，必须实际读取代码确认实现细节
 - 确保理解与实际代码一致后再进行实现
 
-### 9.2 锚点解析
+### 10.2 锚点解析
 
 ```markdown
 # 从任务的"设计锚点"字段解析锚点
@@ -101,7 +101,7 @@ For each pending task in `## 代码生成任务` section:
 - 通配符锚点: #5.x:审查流程 → 展开为 #5.1, #5.2, #5.3 等
 ```
 
-### 9.3 分阶段展示设计信息
+### 10.3 分阶段展示设计信息
 
 **P0 必须参考**（第一阶段展示）：
 
@@ -158,13 +158,20 @@ Working on task 1.1: explore-doc-reviewer Skill
 | P1 | `#1.2:原则名` 原则锚点 | 必须参考 | 第二阶段 |
 | P2 | `#4.x:流程名` 流程锚点 | 建议参考 | 第三阶段 |
 
-### 9.3.5 编排点插槽 pre-codegen（task 级，条件执行）
+### 10.3.4 任务 Skill 消费 [可配置: skill_consumption]
+
+查根执行计划 `steps` 中 `config_key=skill_consumption`、`type=built_in`、`enabled=true` 的条目：
+- 存在 → Read 条目 `ref_file.single`，执行其每任务动作，复用 Step 9 的准备结果。
+- 不存在 → 跳过，不加载指令文件。
+随后进入 10.3.5；本内置检查点的启停不影响通用插槽。
+
+### 10.3.5 编排点插槽 pre-codegen（task 级，条件执行）
 
 查执行计划 `execution-plan-core-apply.json` 的 `orchestration_points` 对象中 `pre-codegen` 插槽数组：
-- **存在启用条目** → 按计划顺序（`order` 升序）执行（reference 型：Read 该条目 `file` 指定的指令文件，执行其任务级动作并复用本轮准备结果；skill 型：调用对应 skill，`run_mode=subagent` 时启动独立子代理）；显式 `enabled=false` 的条目跳过
-- **不存在** → 直接进入 9.4（指令文件不加载，内容不进上下文）
+- **存在启用条目** → 按计划顺序（`order` 升序）执行（reference 型：Read 该条目 `file` 指定的指令文件，按其中指令执行；skill 型：调用对应 skill，`run_mode=subagent` 时启动独立子代理）；显式 `enabled=false` 的条目跳过
+- **不存在** → 直接进入 10.4（指令文件不加载，内容不进上下文）
 
-### 9.4 代码生成原则自检
+### 10.4 代码生成原则自检
 
 基于 Step 7 GATE 加载的 `code-gen-principles.md`，在执行代码生成前对每个任务进行原则自检：
 
@@ -186,7 +193,7 @@ Working on task 1.1: explore-doc-reviewer Skill
 - C-14: 生成的方法/函数是否可被调用方触达？是否有死循环？
 - C-15: 修改现有代码时，是否先理解原有逻辑？
 
-### 9.5 执行代码生成
+### 10.5 执行代码生成
 
 向 Agent 展示完整的召回信息并完成原则自检后，执行代码生成。
 
@@ -196,15 +203,15 @@ Working on task 1.1: explore-doc-reviewer Skill
 - Error or blocker encountered → report and wait for guidance
 - User interrupts
 
-#### 9.5.1 test-after（默认）
+#### 10.5.1 test-after（默认）
 
-> **分支选择**：本节与 9.5.2 互斥。tasks.md 头部 `测试策略` 字段为 `test-after` 或字段不存在时执行本节；为 `tdd` 时跳过本节，执行 9.5.2。
+> **分支选择**：本节与 10.5.2 互斥。tasks.md 头部 `测试策略` 字段为 `test-after` 或字段不存在时执行本节；为 `tdd` 时跳过本节，执行 10.5.2。
 
 执行代码生成任务
 
-#### 9.5.2 tdd（测试先行）
+#### 10.5.2 tdd（测试先行）
 
-> **分支选择**：本节与 9.5.1 互斥。tasks.md 头部 `测试策略` 字段为 `tdd` 时执行本节；为 `test-after` 或字段不存在时跳过本节，执行 9.5.1。
+> **分支选择**：本节与 10.5.1 互斥。tasks.md 头部 `测试策略` 字段为 `tdd` 时执行本节；为 `test-after` 或字段不存在时跳过本节，执行 10.5.1。
 
 按 `references/red-green-tdd.md` 红-绿循环执行（加载 test-driven-development 技能，动态路径解析参见 SKILL.md Reference文件路径解析章节）：
 0. **测试工程初始化**（仅第一个任务前执行一次）：按 `red-green-tdd.md`"测试工程初始化"章节，检查并创建测试目录/构建文件，确保测试命令可运行
@@ -214,18 +221,18 @@ Working on task 1.1: explore-doc-reviewer Skill
 4. 重跑测试命令，确认全部通过（绿灯）；编译失败（代码问题）→ 修复后重编直到通过；环境不允许（找不到编译器/命令、头文件缺失 >5 个等平台不支持）→ 放弃编译，将当前代码视作最终产物，记录原因后标记完成
 
 **纪律**：未确认测试失败不写实现代码；测试通过但未确认过失败 = 无效验证；断言失败先裁决"实现错还是断言错"（依据 delta_test_design.md 预期），禁止为通过而篡改测试意图。
-**前置条件**：测试工程已初始化（见 9.5.2 步骤 0）。
+**前置条件**：测试工程已初始化（见 10.5.2 步骤 0）。
 
 任务按以下步骤严格顺序执行（关键步骤间有门控检查）：
-1. **Step 9 — 代码生成任务**: 先执行 "## 代码生成任务" 下的所有任务（**仅本章节**；"## Code Review 任务"/"## 单元测试任务" 章节分别属 Step 11/Step 12，见上方章节归属映射，**禁止**在本步执行）
-2. **编排点 post-codegen（change 级，条件执行）**: Step 9 之后、Step 10 之前。查执行计划 `orchestration_points` 对象的 `post-codegen` 插槽：存在条目 → 按条目执行（reference 型 Read 指令文件 / skill 型调用 skill）；不存在 → 直接进入 Step 10
-3. **Step 10 — 门控检查1 L4 实现追溯验证**: 代码生成完成后、进入 Code Review 前，**必须立即**执行
-4. **编排点 post-l4（change 级，条件执行）**: Step 10 之后、Step 11 之前。存在 `post-l4` 插槽条目 → 按条目执行；不存在 → 直接进入 Step 11
-5. **Step 11 — Code Review 任务**: L4 验证通过后，所有语言执行规范检查，C/C++/Java/Python/Go 额外执行内存安全检查（执行 tasks.md "## Code Review 任务" 章节 2.x）
-6. **编排点 post-review（change 级，条件执行）**: Step 11 之后、Step 12 之前。存在 `post-review` 插槽条目 → 按条目执行；不存在 → 直接进入 Step 12
-7. **Step 12 — 单元测试任务**: Code Review 完成后，按环节分组执行 "## 单元测试任务" 下的所有任务（tasks.md 3.x）
-8. **编排点 post-ut（change 级，条件执行）**: Step 12 之后、Step 13 之前。存在 `post-ut` 插槽条目 → 按条目执行；不存在 → 直接进入 Step 13
-9. **Step 13 — 门控检查2 L5 UT覆盖度验证**: UT 生成完成后，**必须立即**执行UT与delta_test_design.md的覆盖度验证
+1. **Step 10 — 代码生成任务**: 先执行 "## 代码生成任务" 下的所有任务（**仅本章节**；"## Code Review 任务"/"## 单元测试任务" 章节分别属 Step 12/Step 13，见上方章节归属映射，**禁止**在本步执行）
+2. **编排点 post-codegen（change 级，条件执行）**: Step 10 之后、Step 11 之前。查执行计划 `orchestration_points` 对象的 `post-codegen` 插槽：存在条目 → 按条目执行（reference 型 Read 指令文件 / skill 型调用 skill）；不存在 → 直接进入 Step 11
+3. **Step 11 — 门控检查1 L4 实现追溯验证**: 代码生成完成后、进入 Code Review 前，**必须立即**执行
+4. **编排点 post-l4（change 级，条件执行）**: Step 11 之后、Step 12 之前。存在 `post-l4` 插槽条目 → 按条目执行；不存在 → 直接进入 Step 12
+5. **Step 12 — Code Review 任务**: L4 验证通过后，所有语言执行规范检查，C/C++/Java/Python/Go 额外执行内存安全检查（执行 tasks.md "## Code Review 任务" 章节 2.x）
+6. **编排点 post-review（change 级，条件执行）**: Step 12 之后、Step 13 之前。存在 `post-review` 插槽条目 → 按条目执行；不存在 → 直接进入 Step 13
+7. **Step 13 — 单元测试任务**: Code Review 完成后，按环节分组执行 "## 单元测试任务" 下的所有任务（tasks.md 3.x）
+8. **编排点 post-ut（change 级，条件执行）**: Step 13 之后、Step 14 之前。存在 `post-ut` 插槽条目 → 按条目执行；不存在 → 直接进入 Step 14
+9. **Step 14 — 门控检查2 L5 UT覆盖度验证**: UT 生成完成后，**必须立即**执行UT与delta_test_design.md的覆盖度验证
 
 **编排点通用判断**（5 个插槽统一规则）：查 `docs/.flow_context/execution-plan-core-apply.json` 的 `orchestration_points` 对象中对应插槽（`pre-codegen`/`post-codegen`/`post-l4`/`post-review`/`post-ut`）数组是否有条目。有条目 → 按条目 `type` 执行（`reference`：Read `file` 字段指令文件并按其中指令执行；`skill`：调用 `skill` 字段指定的 skill，`run_mode=subagent` 时 spawn 独立子代理执行）；无条目 → 直接进入下一步，指令文件不加载。
 

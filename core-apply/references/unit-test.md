@@ -1,8 +1,8 @@
-# Step 12: 单元测试环节（单仓模式指令）
+# Step 13: 单元测试环节（单仓模式指令）
 
 > 本文件为可配置步骤 `unit_test` 的指令文件（单仓版）。仅在执行计划含 `key=unit_test` 条目时被 Read。
 
-**UT 范围**：代码生成任务（Step 9）产出的代码文件，按 delta_test_design.md 定义覆盖。
+**UT 范围**：代码生成任务（Step 10）产出的代码文件，按 delta_test_design.md 定义覆盖。
 
 **【执行模式】**: subagent（强制）— 此步骤必须通过子代理执行，禁止主会话直接执行
 **加载技能**: ["generate-java-ut", "fix-java-ut", "improve-java-ut-coverage", "java-assertion-validity-review", "java-test-report", "c-cpp-dt", "c-cpp-dt-autofix", "go-ut", "go-ut-compilation-execution-fixing", "test-driven-development"]
@@ -47,5 +47,5 @@
 | python/js/ts/other | test-driven-development | - | - | - | - |
 
 **主会话后处理**（子代理返回后执行）：
-- 子代理返回 UT 全部完成 → 进入 Step 13（L5门控）
+- 子代理返回 UT 全部完成 → 进入 Step 14（L5门控）
 - 子代理执行失败 → 主会话直接执行单元测试环节（降级策略）

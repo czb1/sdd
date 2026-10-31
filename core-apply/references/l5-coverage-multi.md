@@ -1,4 +1,4 @@
-# Step 13: Gate-2 L5 UT覆盖度验证（多仓模式指令）
+# Step 14: Gate-2 L5 UT覆盖度验证（多仓模式指令）
 
 > 本文件为可配置步骤 `l5_coverage` 的指令文件（多仓版）。仅在执行计划含 `key=l5_coverage` 条目时被 Read。
 > **依赖规则**：`l5_coverage` 依赖 `unit_test`。若 `unit_test` 关闭，本步骤自动降级，本文件不被 Read。
@@ -10,13 +10,13 @@
 
 ## 多仓下的执行位置
 
-多仓模式下，L5 验证由 **M-6** 承担（替代单仓 Step 13 gate-2-coverage）。M-5（各仓单元测试）完成后，主会话分派 M-6 子代理并行执行各仓 L5 验证：
+多仓模式下，L5 验证由 **M-6** 承担（替代单仓 Step 14 gate-2-coverage）。M-5（各仓单元测试）完成后，主会话分派 M-6 子代理并行执行各仓 L5 验证：
 
 - M-6: 各仓L5 UT覆盖度验证（subagent并行，替代门控2 L5）
 
 ## M-6 执行指令
 
-**Replaces**: steps.md Step 11 gate-2-coverage（单仓步骤）
+**Replaces**: SKILL.md Step 14 gate-2-coverage（单仓步骤）
 **Input**: 各仓UT代码、delta_test_design.md、业务代码头文件、tasks.md
 
 ### 1. 对每个涉及仓启动子代理执行L5验证

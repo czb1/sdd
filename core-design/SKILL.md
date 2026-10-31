@@ -102,7 +102,7 @@ sys.exit(result.returncode)
 ```
 AskUserQuestion({
   questions: [{
-    question: "未检测到 flow-config 配置文件（~/.corespec/flow-config.json）。\n当前将以全默认计划执行（内置步骤按出厂默认启停：version_check/fetch_rules/read_similar/expert_experience/design_traceability/design_review/cleanup 全部开启，无自定义步骤）。\n是否生成配置模板以便启停步骤或插入自定义步骤？\n<summary>",
+    question: "未检测到 flow-config 配置文件（~/.corespec/flow-config.json）。\n当前将以全默认计划执行（内置步骤按出厂默认启停：version_check/fetch_rules/read_similar/expert_experience/design_traceability/design_review/cleanup 开启，skill_consumption 默认关闭，无自定义步骤）。\n是否生成配置模板以便启停步骤或插入自定义步骤？\n<summary>",
     header: "首次配置",
     options: [
       { label: "生成模板", description: "生成 ~/.corespec/flow-config.json 模板（含全部可配置项说明），用户修改后重建计划" },
@@ -139,7 +139,7 @@ sys.exit(result.returncode)
 ```
 AskUserQuestion({
   questions: [{
-    question: "flow-config 配置文件已存在，但未包含 core-design 命名空间（首次接触本 skill 的配置项）。\n当前将以全默认计划执行（内置步骤按出厂默认启停：version_check/fetch_rules/read_similar/expert_experience/design_traceability/design_review/cleanup 全部开启，无自定义步骤）。\n是否生成配置模板以便启停步骤或插入自定义步骤？\n<summary>",
+    question: "flow-config 配置文件已存在，但未包含 core-design 命名空间（首次接触本 skill 的配置项）。\n当前将以全默认计划执行（内置步骤按出厂默认启停：version_check/fetch_rules/read_similar/expert_experience/design_traceability/design_review/cleanup 开启，skill_consumption 默认关闭，无自定义步骤）。\n是否生成配置模板以便启停步骤或插入自定义步骤？\n<summary>",
     header: "首次配置",
     options: [
       { label: "生成模板", description: "生成 ~/.corespec/flow-config.json 的 core-design 分区模板（含全部可配置项说明），用户修改后重建计划" },
@@ -164,10 +164,11 @@ AskUserQuestion({
 **计划确认后必须创建 task 任务（MANDATORY）**：计划确认完成后，进入主流程前，必须使用 **TaskCreate 工具**创建 task 任务清单：
 - **先创建当前阶段即可确定的任务**：
   - 固定主流程步骤：构建执行计划 → Phase 1（版本检查，`version_check` 关闭时跳过）→ Phase 2（获取规范，`fetch_rules` 关闭时跳过 GATE 仍执行）→ Phase 3（收集上下文）→ Phase 4（代码理解）→ Phase 8（生成设计文档）各建一个 task
-  - 按执行计划 `steps` 数组，为每个启用的可配置内置步骤（`config_key` = `version_check`/`fetch_rules`/`read_similar`/`expert_experience`/`design_traceability`/`design_review`/`cleanup`）创建 task；关闭的步骤不创建
+  - 按执行计划 `steps` 数组，为每个启用的可配置内置步骤（`config_key` = `version_check`/`fetch_rules`/`read_similar`/`expert_experience`/`skill_consumption`/`design_traceability`/`design_review`/`cleanup`）创建 task；关闭的步骤不创建
   - 每个启用的编排点插槽条目（`orchestration_points` 中的 reference/skill 步骤）同样创建 task
-- **多仓检测后必须补充创建分支 task（MANDATORY）**：执行计划在构建时尚未运行多仓检测，单仓/多仓分支无法在确认时预知。Phase 3 多仓检测输出路由结果后，必须立即用 TaskCreate 补齐分支任务：单仓 → Phase 5（`read_similar` 关闭时跳过）→ Phase 6 → Phase 7（`expert_experience` 关闭时跳过）→ Phase 8 → Phase 9（`design_traceability` 关闭时跳过）→ Phase 10（`design_review` 关闭时跳过）→ Phase 11（`cleanup` 关闭时跳过）各建一个 task；多仓 → 按 references/multi-repo.md 的 M-1/M-2/M-3a/M-3b/cleanup 各建一个 task（M-3a 对应 `design_traceability`、M-3b 对应 `design_review`、cleanup 对应 `cleanup`，关闭的 M 不创建；M-2 不可关，始终创建）
+- **多仓检测后必须补充创建分支 task（MANDATORY）**：执行计划在构建时尚未运行多仓检测，单仓/多仓分支无法在确认时预知。Phase 3 多仓检测输出路由结果后，必须立即用 TaskCreate 补齐分支任务：单仓 → Phase 5（`read_similar` 关闭时跳过）→ Phase 6 → Phase 7（`expert_experience` 关闭时跳过）→ Phase 8 → Phase 9（`skill_consumption` 关闭时跳过）→ Phase 10（`design_traceability` 关闭时跳过）→ Phase 11（`design_review` 关闭时跳过）→ Phase 12（`cleanup` 关闭时跳过）各建一个 task；多仓 → 按 references/multi-repo.md 的 M-1/M-2/Phase 9/M-3a/M-3b/cleanup 各建一个 task（Phase 9 对应 `skill_consumption`，由主会话聚合执行；M-3a 对应 `design_traceability`、M-3b 对应 `design_review`、cleanup 对应 `cleanup`，关闭的 M 不创建；M-2 不可关，始终创建）
 - task 描述注明对应步骤/config_key/M 阶段与启停状态
+- 补建时复用已存在的同一步骤 task，只创建缺失项，禁止重复创建。
 - **禁止跳过 TaskCreate**（用户可直观看到哪些步骤要执行、哪些已关闭）
 
 **执行期规则**：
@@ -186,10 +187,10 @@ AskUserQuestion({
 | post-gather-context | Phase 3 完成后 | M-1 完成后 |
 | post-code-understanding | Phase 4 完成后 | Phase 4 完成后 |
 | pre-generate | Phase 8 开始前 | M-2 启动前 |
-| post-generate | Phase 8 全部产物生成后、Phase 9 前 | M-2 全部仓产物生成后、M-3a 前 |
-| post-traceability | Phase 9 完成或跳过后 | M-3a 完成或跳过后 |
-| post-design-review | Phase 10 完成或跳过后 | M-3b 完成或跳过后 |
-| post-cleanup | Phase 11 完成或跳过后 | cleanup 完成或跳过后 |
+| post-generate | Phase 8 全部产物生成后、Phase 9 前 | M-2 全部仓产物生成后、Phase 9 前 |
+| post-traceability | Phase 10 完成或跳过后 | M-3a 完成或跳过后 |
+| post-design-review | Phase 11 完成或跳过后 | M-3b 完成或跳过后 |
+| post-cleanup | Phase 12 完成或跳过后 | cleanup 完成或跳过后 |
 
 ## Artifact Scope
 
@@ -268,7 +269,7 @@ AskUserQuestion({
 
 ### Phase 6: 读取 brainstorming 生成的 design.md
 
-**动作**：读取 `docs/changes/<change-name>/.brainstorming_output` 元数据文件，解析 `design_doc_path` 字段获取 design.md 路径并读取内容，供 Phase 8 生成 delta_design.md 参考。元数据文件不存在说明 brainstorming 未执行，跳过本步骤。design.md 实际清理在 Phase 11 执行。
+**动作**：读取 `docs/changes/<change-name>/.brainstorming_output` 元数据文件，解析 `design_doc_path` 字段获取 design.md 路径并读取内容，供 Phase 8 生成 delta_design.md 参考。元数据文件不存在说明 brainstorming 未执行，跳过本步骤。design.md 实际清理在 Phase 12 执行。
 
 **确认延迟的实现层面问题**（仅多仓）：
 - **单仓** → 跳过（单仓无 impl_questions_for_design.json）
@@ -305,24 +306,31 @@ AskUserQuestion({
 读取后输出: "GATE PASSED: references/multi-repo.md loaded"。
 <!-- /GATE:REF -->
 
-**多仓模式**：本 Phase 的单仓文档生成由 M-2 替代；Phase 9~11 仍正常执行。
+**多仓模式**：本 Phase 的单仓文档生成由 M-2 替代；Phase 9~12 按执行计划继续执行。
 
-### Phase 9: 设计追溯验证（强制）[可配置: design_traceability]
+### Phase 9: 任务 Skill 关联 [可配置: skill_consumption]
+
+> 本步骤为默认关闭的内置可启停步骤。
+> - **执行计划 `steps` 含 `config_key=skill_consumption`、`type=built_in`、`enabled=true` 的条目** → 从条目 `ref_file.single` / `ref_file.multi` 取指令文件并 Read，按其中指令执行。
+> - **没有启用条目** → 跳过，不加载指令文件，继续 Phase 10。
+> - 单仓在 Phase 8 和其后的通用插槽执行完毕后执行；多仓在 M-2 全部仓完成及通用插槽执行完毕后，由主会话聚合执行一次。
+
+### Phase 10: 设计追溯验证（强制）[可配置: design_traceability]
 
 > 本步骤为可配置步骤。执行与否以构建执行计划持久化的 execution-plan-core-design.json 为准：
 > - **执行计划 steps 数组含 `config_key=design_traceability`（type=built_in）条目** → 本步骤强制不可跳过，按以下模式执行（单仓读取 `ref_file.single` 指令文件 / 多仓读取 `ref_file.multi` 指令文件并执行 M-3a）
-> - **执行计划不含本步骤** → 本步骤整体跳过，**Phase 9→10 衔接豁免**（不检查"已通过 Agent tool 启动子代理"），直接进入 Phase 10
+> - **执行计划不含本步骤** → 本步骤整体跳过，**Phase 10→11 衔接豁免**（不检查"已通过 Agent tool 启动子代理"），直接进入 Phase 11
 > - 多仓模式：`design_traceability` 关闭 → M-3a 整体跳过，M-3a 的必经关卡/禁止主会话/ERROR 禁止推迟强制位同步豁免（见 references/multi-repo.md）
 
-### Phase 10: design-doc-reviewer 审查 [可配置: design_review]
+### Phase 11: design-doc-reviewer 审查 [可配置: design_review]
 
 > 本步骤为可配置步骤。执行与否以构建执行计划持久化的 execution-plan-core-design.json 为准：
 > - **执行计划 steps 数组含 `config_key=design_review`（type=built_in）条目** → 本步骤强制不可跳过，按以下模式执行（单仓读取 `ref_file.single` 指令文件 / 多仓读取 `ref_file.multi` 指令文件并执行 M-3b）
-> - **执行计划不含本步骤** → 本步骤整体跳过，**Phase 10→11 衔接豁免**（不检查"已通过 Agent tool 启动子代理"），直接进入 Phase 11
+> - **执行计划不含本步骤** → 本步骤整体跳过，**Phase 11→12 衔接豁免**（不检查"已通过 Agent tool 启动子代理"），直接进入 Phase 12
 > - 多仓模式：`design_review` 关闭 → M-3b 整体跳过，M-3b 的必经关卡/禁止主会话/ERROR 禁止推迟强制位同步豁免（见 references/multi-repo.md）
-> - **`design_traceability` 关闭但 `design_review` 开启时**：M-2 完成后直接进入 M-3b，"M-3a 全过后才执行 M-3b"依赖随 `design_traceability` 关闭豁免
+> - **`design_traceability` 关闭但 `design_review` 开启时**：Phase 9 完成或跳过后进入 M-3b，"M-3a 全过后才执行 M-3b"依赖随 `design_traceability` 关闭豁免
 
-### Phase 11: 清理临时文件 [可配置: cleanup]
+### Phase 12: 清理临时文件 [可配置: cleanup]
 
 > 本步骤为可配置步骤。执行与否以构建执行计划持久化的 execution-plan-core-design.json 为准：
 > - **执行计划 steps 数组含 `config_key=cleanup`（type=built_in）条目** → 本步骤强制不可跳过（core-design 流程最后一步），按以下模式执行（单仓读取 `ref_file.single` 指令文件 / 多仓读取 `ref_file.multi` 指令文件并执行多仓清理）
@@ -378,8 +386,9 @@ The design-phase artifacts are defined in `core-schemas/spec-driven/schema.yaml`
 - Phase 6 (Brainstorming Output): ✓ (if exists)
 - Phase 7 (Existing Experience Context): <已准备 / 无可复用经验 / 已关闭>
 - Phase 8 (Generate Artifacts): ✓ (已执行内容填充，已对照 design-principles.md + design-views.md)
-- Phase 9 (设计追溯验证): ✓ (cross-doc-checker L2/L3)
-- Phase 10 (design-doc-reviewer 审查): ✓
+- Phase 9 (任务 Skill 关联): 按 skill_consumption 启停状态报告
+- Phase 10 (设计追溯验证): <通过 / 已关闭 / 失败> (cross-doc-checker L2/L3，按实际结果)
+- Phase 11 (design-doc-reviewer 审查): <通过 / 已关闭 / 失败>（按实际结果）
 
 ### `language-specific design specifications` Rule Integration
 - Rule content fetched in Step 3: ✓

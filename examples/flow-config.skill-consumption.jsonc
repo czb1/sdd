@@ -1,23 +1,10 @@
+// 合并到现有配置对应命名空间，保留其他配置键。
+// 内置步骤：false 关闭、true 开启；缺省 false，两阶段独立。
 {
-  // 将需要的声明合并到 ~/.corespec/flow-config.json 的同名命名空间；保留已有配置。
-  // 默认关闭：两个 skill_consumption 对象均保持注释，不产生执行计划条目。
-  // 取消某个对象全部行的注释后，仅启用对应阶段；重新构建并确认执行计划后生效。
   "core-design": {
-    // "skill_consumption": {
-    //   "type": "reference",
-    //   "file": "references/skill-consumption.md",
-    //   "at": "post-generate",
-    //   "order": 0,
-    //   "description": "任务形成后查找、确认、安装并关联 Skill 与经验"
-    // }
+    "skill_consumption": false
   },
   "core-apply": {
-    // "skill_consumption": {
-    //   "type": "reference",
-    //   "file": "references/skill-consumption.md",
-    //   "at": "pre-codegen",
-    //   "order": 0,
-    //   "description": "按任务读取已关联能力，按需批量补齐后消费"
-    // }
+    "skill_consumption": false
   }
 }

@@ -6,7 +6,7 @@
 
 **重要**：tasks.md 必须按照以下结构组织：
 
-**单仓与多仓一致，tasks.md 仅包含"代码生成任务"章节（即下方 1.x 任务），不包含"Code Review 任务"和"单元测试任务"章节。原因：Code Review（Step 11）与单元测试（Step 12）由 core-apply 固定流程驱动（与多仓 M-4/M-5 一致），不再从 tasks.md 识别任务。包含这些任务会导致：status 脚本误判 blocked、完成率虚低、执行 Agent 越界。**
+**单仓与多仓一致，tasks.md 仅包含"代码生成任务"章节（即下方 1.x 任务），不包含"Code Review 任务"和"单元测试任务"章节。原因：Code Review（Step 12）与单元测试（Step 13）由 core-apply 固定流程驱动（与多仓 M-4/M-5 一致），不再从 tasks.md 识别任务。包含这些任务会导致：status 脚本误判 blocked、完成率虚低、执行 Agent 越界。**
 
 ```markdown
 ## 代码生成任务
