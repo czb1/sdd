@@ -95,7 +95,7 @@
 
 ## 8.4 tasks.md 结构 + 8.5 设计锚点提取
 
-必须读取 **references/tasks-md-guidance.md**（tasks.md 结构指导、锚点格式规范及提取示例）。本阶段只生成任务；Skill 消费由 Phase 8 全部完成后的 `post-generate` 编排点按执行计划调度，`skill_consumption` 默认关闭，不能因读取结构指导而触发。
+必须读取 **references/tasks-md-guidance.md**（tasks.md 结构指导、锚点格式规范及提取示例）。
 
 ## Artifact Generation Scripts
 
@@ -133,8 +133,6 @@ result = subprocess.run([sys.executable, config_dir / 'skills' / 'core-design' /
 sys.exit(result.returncode)
 "
 
-# --query 仅在执行计划启用 skill_consumption 时作为查找关键词参考，不会自动开启该步骤。
-# 不通过旧生成脚本触发独立经验获取。
 ```
 
 The scripts:
@@ -148,7 +146,7 @@ For each artifact to generate:
 - Read context files (delta_spec.md, `language-specific design specifications`, similar changes, Phase 7 expert experience context)
 - Generate artifact with references to context
 - Ensure `language-specific design specifications` skill usage instructions are included in delta_design.md
-- Integrate existing design experience when applicable; additional task capability discovery and associations run only through the enabled post-generate skill_consumption entry.
+- Integrate existing design experience when applicable.
 - **CRITICAL: Fill template placeholders with actual content before writing**
 ```
 

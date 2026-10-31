@@ -16,20 +16,13 @@
 - **编排点插槽**（`orchestration_points` 对象）：`pre-codegen`（M-2 子代理内 task 级）/ `post-codegen`（M-2 后）/ `post-l4`（M-3 后）/ `post-review`（M-4 后）/ `post-ut`（M-5 后）
   - **对应插槽数组含条目** → 按条目 `type` 执行（`reference`：Read `file` 字段指令文件并执行；`skill`：调用 `skill` 字段指定 skill，`run_mode=subagent` 时 spawn 独立子代理）
   - **对应插槽数组为空** → 跳过，指令文件不加载，直接进入下一阶段
-- **任务 Skill 消费 [可配置: skill_consumption]（默认关闭）**：仅根执行计划及下发片段的 `pre-codegen` 含该 reference 条目时执行；无条目时不加载消费指令，准备、确认、下载、读取关联内容与回写均跳过；其他 pre-codegen 条目不受影响。
 - **`skipped-core-apply.json` 只读**：Step 14 on-completion 展示可配置步骤状态时读取；agent 全程不写
-
-## Skill 消费强制位豁免
-
-| 阶段 | 可配置键 | 关闭时行为 |
-|---|---|---|
-| M-2 循环前准备 / task 级消费 | `skill_consumption`（reference，默认关闭） | 不加载消费指令，不执行候选准备、确认、下载、关联读取与回写；M-2 核心代码生成及其他编排条目照常执行 |
 
 ## Prerequisites
 1. repo_assignments.json 存在
 2. involved_repos >= 2
 3. 已输出 "GATE PASSED: references/multi-repo.md loaded"
-4. 已输出 "GATE PASSED: references/code-gen-principles.md loaded"（主会话 Step 7 GATE 加载）
+4. 各仓代码生成代理在开始生成前，必须按任务模板读取代码生成原则；主会话读取不能替代子代理的必读输入检查
 
 ## M-1: 多仓检测
 **Replaces**: steps.md Step 3 check-status（多仓模式下status脚本基于根目录路径不适用，M-1替代为Agent直接读取各仓文件检查状态）
@@ -73,18 +66,9 @@
    - 调用 `parse_cross_repo_dependencies(tasks_content)` 解析跨仓依赖字段
    - 无效仓引用（不在involved_repos中）输出WARNING并忽略该依赖
    - **【强制】循环对象边界**：M-2 代码生成循环对象**仅限**各仓 tasks.md `## 代码生成任务` 章节（1.x）。`## Code Review 任务`（2.x）属 M-4（`code_review`）、`## 单元测试任务`（3.x）属 M-5（`unit_test`）——执行计划 steps 数组不含对应 `config_key` 条目（M 关闭）时整章节跳过，**禁止**在 M-2 代码生成循环中执行；1.x 全部 `- [x]` 无待办时直接结束 M-2（进入 post-codegen 编排点判断），不得将 2.x/3.x 作为 M-2 循环对象
-### 代码生成代理启动前：任务 Skill 消费准备 [可配置: skill_consumption]（默认关闭）
-
-> 仅当执行计划 `execution-plan-core-apply.json` 的 `orchestration_points.pre-codegen` 含 `key=skill_consumption` 的 reference 条目时执行；未配置、已注释或计划中无该条目时跳过，不加载消费指令。仅启用且存在待办 1.x 任务时，由主会话按专属指令完成准备，再启动代码生成代理。
-
-<!-- GATE:REF references/skill-consumption.md -->
-**MANDATORY GATE（仅启用时）**：Read 本 SKILL 安装目录下的 `references/skill-consumption.md`；文件不存在时 MUST STOP。
-读取后输出: "GATE PASSED: references/skill-consumption.md loaded"。
-<!-- /GATE:REF -->
-
-**Execution**：完整执行指令见 `references/skill-consumption.md`；配置方式见 `../core-shared/references/skill-consumption-config.md`。
-
 6. **【强制】使用子代理并行执行各仓代码生成**（禁止在主会话中逐仓顺序执行）：
+
+   启动前按 SKILL.md 的执行期规则处理启用 reference 条目声明的主会话前置准备（若有）；本轮只准备一次，将准备结果作为补充任务上下文传给各仓代理，不改变模板中的通用插槽调度。
 
    <!-- GATE:REF multi-codegen-template.md -->
    **MANDATORY GATE**: M-2 执行前必须先 Read 本SKILL所在目录下的 `references/multi-codegen-template.md`。
@@ -93,7 +77,7 @@
    读取后输出: "GATE PASSED: references/multi-codegen-template.md loaded"。
    <!-- /GATE:REF -->
 
-   子代理任务描述模板：使用 `references/multi-codegen-template.md`（GATE 已加载）中的模板，将 `{repo}` / `{repo_path}` / `{change_name}` / `{project_root}` / `{skill_dir}` 占位符替换为实际值后作为子代理任务描述。**禁止改写模板中的输入文件表与执行步骤**——子代理按模板流程执行（步骤 c 内嵌 9.1~9.5 等价流程：代码理解 → 锚点解析 → P0/P1/P2 展示 → 按执行计划执行 pre-codegen（Skill 消费默认关闭）→ 原则自检 → 代码生成；模板内已含测试策略解析，tdd 时按红-绿循环执行）。
+   子代理任务描述模板：使用 `references/multi-codegen-template.md`（GATE 已加载）中的模板，将 `{repo}` / `{repo_path}` / `{change_name}` / `{project_root}` / `{skill_dir}` 占位符替换为实际值后作为子代理任务描述。**禁止改写模板中的输入文件表与执行步骤**——子代理按模板流程执行（步骤 c 内嵌 9.1~9.5 等价流程：代码理解 → 锚点解析 → P0/P1/P2 展示 → 按执行计划执行 pre-codegen → 原则自检 → 代码生成；模板内已含测试策略解析，tdd 时按红-绿循环执行）。
 
 7. 并发规则（对齐通用规则 subagent并行执行规则）：
    - **并发上限**：同时运行的子代理数量不得超过3个

@@ -1,8 +1,8 @@
-# 执行阶段任务 Skill 消费 [可配置: skill_consumption]（默认关闭）
+# 执行阶段任务 Skill 消费（自定义 reference 步骤，默认关闭）
 
 ## 启用门控
 
-仅消费根项目 `docs/.flow_context/execution-plan-core-apply.json` 的 `orchestration_points.pre-codegen` 中 `key=skill_consumption`、`type=reference`、`file=references/skill-consumption.md` 的有效条目；多仓子代理使用主会话下发的执行计划片段中的同一条目。未配置、已注释、条目不存在或显式 `enabled=false` 时立即返回，不读取关联的 Skill / 经验内容，不检索、确认、下载或回写字段。
+仅消费根项目 `docs/.flow_context/execution-plan-core-apply.json` 的 `orchestration_points.pre-codegen` 中 `key=skill_consumption`、`type=reference`、`file` 指向本指令文件的有效条目；多仓子代理使用主会话下发的执行计划片段中的同一条目。未配置、已注释、条目不存在或显式 `enabled=false` 时立即返回，不读取关联的 Skill / 经验内容，不检索、确认、下载或回写字段。
 
 这是现有 `pre-codegen` 的自定义 reference 子步骤，不新增固定 Step 或内置布尔键。不要用 core-design 的计划、已有 Skill 字段、本地文件或其他 pre-codegen 条目推断启用。计划 / 片段不可读取或无效时停止并报告计划错误，不自行视为启用或从配置源重建。
 
@@ -11,7 +11,9 @@
 读取后输出: "GATE PASSED: core-shared/references/skill-consumption.md loaded"。
 <!-- /GATE:REF -->
 
-## 循环前准备（主会话，每轮一次）
+## 主会话前置准备（每轮一次）
+
+由通用执行期规则在单仓 Step 9 循环前 / 多仓 M-2 代理启动前加载已启用的 reference 条目后执行。本节只准备关联，当前任务内容的实际消费留到 pre-codegen；未启用时调度器不会读取本文件。
 
 1. 只处理 tasks.md `## 代码生成任务` 的待办 1.x 任务；无待办直接返回。多仓在启动 M-2 代码生成代理前汇总各仓待办，以“仓名 + 任务编号”区分。
 2. 读取 Skill 字段和已关联的本地内容；尊重「不使用（用户选择）」，不将其当成缺失关联。已有有效关联直接复用，不重复选型或确认。
@@ -21,7 +23,7 @@
 ## 每任务消费（pre-codegen，task 级）
 
 1. 在单仓 9.3.5 / 多仓模板步骤 c 的 pre-codegen 位置，复核本步骤条目仍有效，再读取当前任务锁定的 Skill / 经验内容，作为代码生成上下文；不得改写项目原则或跳过原验证步骤。
-2. 复用循环前的批量准备结果，不再执行全量候选准备。明确不使用、无合适候选或本轮获取失败时继续原任务，不在每个任务弹窗或重新下载。
+2. 复用主会话前置准备的结果，不再执行全量候选准备。明确不使用、无合适候选或本轮获取失败时继续原任务，不在每个任务弹窗或重新下载。
 3. 循环中发现新的新增 / 改选需求时，汇总并预检其余待办任务，回到主会话的批量准备阶段统一处理；已有可用关联的任务可以继续，不逐任务临时弹窗。
 4. 继续执行 pre-codegen 中其他已配置条目，然后进入原则自检与代码生成。
 
@@ -34,4 +36,4 @@
 
 ## 输出
 
-汇报实际使用的关联、用户指定 / Agent 自选 / 不使用及获取失败任务；失败说明后继续原任务，字段回写失败不得宣称成功。关闭时只报告“skill_consumption 已关闭”，不把关闭伪装成无候选或获取失败。
+汇报实际使用的关联、用户指定 / Agent 自选 / 不使用及获取失败任务；失败说明后继续原任务，字段回写失败不得宣称成功。关闭时调度器不加载本文件；通用计划摘要可报告该条目关闭，不执行本输出段。

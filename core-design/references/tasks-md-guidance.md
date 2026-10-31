@@ -33,9 +33,7 @@
 
 > **填写要求**：`测试文件路径` 和 `测试命令` 必须按项目实际结构写死，不得留占位符。`覆盖用例` 必须覆盖 delta_test_design.md 中全部 TC（派生脚本自检会校验，未覆盖则报错终止）。
 
-## 可选 Skill 字段
-
-Skill 字段由 `post-generate` 的 `skill_consumption` 步骤（默认关闭）按 `references/skill-consumption.md` 回写；本结构指导不触发能力检索、下载或消费。关闭时不新增或改写关联；重新生成任务时保留已有 Skill / 经验字段。
+> 重新生成 tasks.md 时保留已有任务编号、完成状态和扩展字段。
 
 ## 8.5 设计锚点自动提取（推荐）
 

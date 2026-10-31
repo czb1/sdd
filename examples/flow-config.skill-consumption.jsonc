@@ -7,7 +7,7 @@
     //   "type": "reference",
     //   "file": "references/skill-consumption.md",
     //   "at": "post-generate",
-    //   "order": 1,
+    //   "order": 0,
     //   "description": "任务形成后查找、确认、安装并关联 Skill 与经验"
     // }
   },
@@ -16,7 +16,7 @@
     //   "type": "reference",
     //   "file": "references/skill-consumption.md",
     //   "at": "pre-codegen",
-    //   "order": 1,
+    //   "order": 0,
     //   "description": "按任务读取已关联能力，按需批量补齐后消费"
     // }
   }
