@@ -1790,3 +1790,78 @@ def validate_namespace(ns: Dict[str, Any], skill: str) -> List[str]:
             errors.append(f"配置键 '{key}' 不是内置步骤名（内置：{sorted(builtin_keys)}），布尔值仅允许用于内置步骤开关")
         else:
             errors.extend(validate_custom_step(key, value, skill))
+    return errors
+
+
+# ---------------------------------------------------------------------------
+# Config fingerprint (per skill namespace)
+# ---------------------------------------------------------------------------
+
+def canonical_fingerprint(ns: Dict[str, Any]) -> str:
+    """
+    Compute canonical fingerprint of the skill namespace:
+    strip comments already done at parse; sort keys; drop whitespace; hash.
+
+    Returns hex digest of the canonical serialization.
+    """
+    def normalize(obj: Any) -> Any:
+        if isinstance(obj, dict):
+            return {k: normalize(obj[k]) for k in sorted(obj.keys())}
+        if isinstance(obj, list):
+            return [normalize(x) for x in obj]
+        return obj
+
+    canon = json.dumps(normalize(ns), ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(canon.encode("utf-8")).hexdigest()
+
+
+# ---------------------------------------------------------------------------
+# Execution plan building
+# ---------------------------------------------------------------------------
+
+def apply_dependency_rules(
+    builtin_flags: Dict[str, bool]
+) -> Tuple[Dict[str, bool], Dict[str, Dict[str, Any]], Dict[str, Dict[str, Any]]]:
+    """
+    Apply built-in dependency rules (core-apply: l5_coverage depends on
+    unit_test; core-init: execute_sync depends on check_sync;
+    core-explore: req_refine=true -> step-4 解析设计文档自动降级为 fixed disabled).
+    Returns (resolved_flags, disabled_reasons, fixed_disabled_reasons) where
+    disabled_reasons maps built-in key -> {reason, dependency_of, auto_downgraded},
+    and fixed_disabled_reasons maps fixed-step key (e.g. "step-4") ->
+    {reason, dependency_of, auto_downgraded} for fixed steps that should be
+    auto-skipped based on a built-in flag.
+    """
+    resolved = dict(builtin_flags)
+    disabled: Dict[str, Dict[str, Any]] = {}
+    fixed_disabled: Dict[str, Dict[str, Any]] = {}
+    # dependency downgrade: unit_test false -> l5_coverage auto-downgraded
+    if resolved.get("unit_test") is False and resolved.get("l5_coverage", True):
+        resolved["l5_coverage"] = False
+        disabled["l5_coverage"] = {
+            "reason": REASON_DEPENDENCY_DOWNGRADED,
+            "dependency_of": "unit_test",
+            "auto_downgraded": True,
+        }
+    # dependency downgrade: check_sync false -> execute_sync auto-downgraded.
+    # check_sync=false 表示不需要同步——execute_sync 依赖同步检查结果，
+    # 无该输入则无从执行，故同样跳过（非"降级为全仓同步"）。
+    if resolved.get("check_sync") is False and resolved.get("execute_sync", True):
+        resolved["execute_sync"] = False
+        disabled["execute_sync"] = {
+            "reason": REASON_DEPENDENCY_DOWNGRADED,
+            "dependency_of": "check_sync",
+            "auto_downgraded": True,
+        }
+    # core-explore 互斥规则：req_refine=true -> step-4 解析设计文档自动降级
+    # （req_refine 启用时由 step-6 需求文档细化替代，原 step-4 解析逻辑不执行；
+    # 多仓检测在 step-5 完成，不依赖 step-4 输出，故 step-4 可安全跳过）
+    if resolved.get("req_refine") is True:
+        fixed_disabled["step-4"] = {
+            "reason": REASON_DEPENDENCY_DOWNGRADED,
+            "dependency_of": "req_refine",
+            "auto_downgraded": True,
+        }
+    return resolved, disabled, fixed_disabled
+
+
