@@ -174,11 +174,6 @@
 +        {"key": "step-10", "skill_md_step": "Phase 11", "description": "design-doc-reviewer 审查（subagent）"},
 +        {"key": "step-11", "skill_md_step": "Phase 12", "description": "清理临时文件（brainstorming/design.md/clarification_summary.json/drafts/downloads 等）"},
      ],
-@@ -1164,3 +1190,3 @@
-         code = code.rstrip()
--        if code != "{" and not code.endswith(","):
-+        if not code.endswith(("{", ",")):
-             _rewrite(prev_eff, code + ",", cmt)
 @@ -2075,3 +2101,3 @@
  // 说明：顶层按 skill 名分组。每个 core-* skill 只解析自己的命名空间。
 -//       某 skill 对象不存在 = 该 skill 全默认（内置步骤全开，无自定义步骤）。

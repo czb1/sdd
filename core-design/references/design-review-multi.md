@@ -1,6 +1,6 @@
 # Phase 11: 各仓 design-doc-reviewer 审查（多仓模式指令文件）
 
-> 本文件为可配置步骤 `design_review` 的指令文件（多仓版）。仅在执行计划 `steps` 含 `config_key=design_review`、`type=built_in`、`enabled=true` 的条目时，由骨架读取该条目的 `ref_file.single` / `ref_file.multi` 后执行。
+> 本文件为可配置步骤 `design_review` 的指令文件（多仓版）。仅在执行计划含 `key=design_review` 条目时被 Read。
 > 指令来源：`references/multi-repo.md` 的 **M-3b**（多仓下设计文档审查的唯一执行权威）。
 
 ## 多仓下的执行位置

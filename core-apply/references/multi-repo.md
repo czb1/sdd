@@ -8,11 +8,11 @@
 
 多仓模式下，可配置步骤（L4/Code Review/UT/L5）与编排点插槽的**执行与否以 Step 0 持久化的执行计划为准**（`docs/.flow_context/execution-plan-core-apply.json`），与单仓模式同一权威：
 
-- **可配置步骤**（`steps` 数组 `type=built_in`、`enabled=true` 的条目，`ref_file.multi`）：`l4_review`（M-3）/ `code_review`（M-4）/ `unit_test`（M-5）/ `l5_coverage`（M-6）
-  - **执行计划 steps 数组含该 `config_key`、`type=built_in`、`enabled=true` 的条目** → 从条目 `ref_file.multi` 字段取指令文件（动态路径解析参见 SKILL.md Reference文件路径解析章节）并 Read，按其中指令执行
-  - **执行计划不含该 `config_key` 的启用内置条目** → 该步骤跳过，**不 Read 指令文件**（内容不进上下文），直接进入下一 M 阶段
+- **可配置步骤**（`steps` 数组 `type=built_in` 条目，`ref_file.multi`）：`l4_review`（M-3）/ `code_review`（M-4）/ `unit_test`（M-5）/ `l5_coverage`（M-6）
+  - **执行计划 steps 数组含该 `config_key` 条目** → 从条目 `ref_file.multi` 字段取指令文件（动态路径解析参见 SKILL.md Reference文件路径解析章节）并 Read，按其中指令执行
+  - **执行计划不含该 `config_key` 条目** → 该步骤跳过，**不 Read 指令文件**（内容不进上下文），直接进入下一 M 阶段
   - `l5_coverage` 依赖 `unit_test`：UT 关闭则 L5 自动降级（执行计划 disabled 区标记），两文件均不 Read
-- **主会话执行的可配置步骤**（不映射 M 阶段，与单仓同一机制、同一执行计划条目）：`version_check`（Step 1，M-1 之前执行）/ `show_progress`（Step 8，M-2 之前执行，**默认关闭**，执行计划含启用内置条目才执行）/ `skill_consumption`（Step 9，M-2 之前准备、M-2 内每任务消费，默认关闭）/ `completion_report`（Step 15，M-6 之后 on-completion 执行）。从对应启用条目的 `ref_file.multi` 读取指令，启用判断同单仓
+- **主会话执行的可配置步骤**（不映射 M 阶段，与单仓同一机制、同一执行计划条目）：`version_check`（Step 1，M-1 之前执行）/ `show_progress`（Step 8，M-2 之前执行，**默认关闭**，执行计划含条目才执行）/ `skill_consumption`（Step 9，M-2 之前准备、M-2 内每任务消费，默认关闭）/ `completion_report`（Step 15，M-6 之后 on-completion 执行）。从对应启用条目的 `ref_file.multi` 读取指令，启用判断同单仓
 - **编排点插槽**（`orchestration_points` 对象）：`pre-codegen`（M-2 子代理内 task 级）/ `post-codegen`（M-2 后）/ `post-l4`（M-3 后）/ `post-review`（M-4 后）/ `post-ut`（M-5 后）
   - **对应插槽数组含条目** → 按条目 `type` 执行（`reference`：Read `file` 字段指令文件并执行；`skill`：调用 `skill` 字段指定 skill，`run_mode=subagent` 时 spawn 独立子代理）
   - **对应插槽数组为空** → 跳过，指令文件不加载，直接进入下一阶段
@@ -158,7 +158,7 @@
 ## M-3: 各仓L4实现追溯验证（subagent并行） **[可配置: l4_review]**
 
 > **本步骤为可配置步骤**。执行与否以执行计划为准（见文件头部"可配置步骤与编排点"）：
-> - **执行计划 steps 数组含 `config_key=l4_review`、`type=built_in`、`enabled=true` 的条目** → 读取其 `ref_file.multi` 指令文件并执行，本 M 阶段指令见该文件
+> - **执行计划 steps 数组含 `config_key=l4_review` 条目** → 读取其 `ref_file.multi` 指令文件并执行，本 M 阶段指令见该文件
 > - **执行计划不含本步骤** → 跳过，指令文件不加载，直接进入 M-4
 
 **Replaces**: 单仓 Step 11 gate-1-traceability（单仓步骤）
@@ -169,7 +169,7 @@
 ## M-4: 各仓Code Review（subagent并行） **[可配置: code_review]**
 
 > **本步骤为可配置步骤**。执行与否以执行计划为准（见文件头部"可配置步骤与编排点"）：
-> - **执行计划 steps 数组含 `config_key=code_review`、`type=built_in`、`enabled=true` 的条目** → 读取其 `ref_file.multi` 指令文件并执行，本 M 阶段指令见该文件
+> - **执行计划 steps 数组含 `config_key=code_review` 条目** → 读取其 `ref_file.multi` 指令文件并执行，本 M 阶段指令见该文件
 > - **执行计划不含本步骤** → 跳过，指令文件不加载，直接进入 M-5
 
 **Replaces**: 单仓 Step 12 code-review（单仓步骤）
@@ -180,7 +180,7 @@
 ## M-5: 各仓单元测试（subagent并行） **[可配置: unit_test]**
 
 > **本步骤为可配置步骤**。执行与否以执行计划为准（见文件头部"可配置步骤与编排点"）：
-> - **执行计划 steps 数组含 `config_key=unit_test`、`type=built_in`、`enabled=true` 的条目** → 读取其 `ref_file.multi` 指令文件并执行，本 M 阶段指令见该文件
+> - **执行计划 steps 数组含 `config_key=unit_test` 条目** → 读取其 `ref_file.multi` 指令文件并执行，本 M 阶段指令见该文件
 > - **执行计划不含本步骤** → 跳过，指令文件不加载，直接进入 M-6
 
 **Replaces**: 单仓 Step 13 unit-test（单仓步骤）
@@ -191,7 +191,7 @@
 ## M-6: 各仓L5 UT覆盖度验证（subagent并行） **[可配置: l5_coverage]**
 
 > **本步骤为可配置步骤**。执行与否以执行计划为准（见文件头部"可配置步骤与编排点"）：
-> - **执行计划 steps 数组含 `config_key=l5_coverage`、`type=built_in`、`enabled=true` 的条目** → 读取其 `ref_file.multi` 指令文件并执行，本 M 阶段指令见该文件
+> - **执行计划 steps 数组含 `config_key=l5_coverage` 条目** → 读取其 `ref_file.multi` 指令文件并执行，本 M 阶段指令见该文件
 > - **执行计划不含本步骤** → 跳过，指令文件不加载，直接结束流程进入 on-completion
 > - **依赖规则**：`l5_coverage` 依赖 `unit_test`。`unit_test` 关闭 → L5 自动降级，本文件不 Read
 

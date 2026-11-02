@@ -1,6 +1,6 @@
 # Phase 10: 各仓设计追溯验证（多仓模式指令文件）
 
-> 本文件为可配置步骤 `design_traceability` 的指令文件（多仓版）。仅在执行计划 `steps` 含 `config_key=design_traceability`、`type=built_in`、`enabled=true` 的条目时，由骨架读取该条目的 `ref_file.single` / `ref_file.multi` 后执行。
+> 本文件为可配置步骤 `design_traceability` 的指令文件（多仓版）。仅在执行计划含 `key=design_traceability` 条目时被 Read。
 > 指令来源：`references/multi-repo.md` 的 **M-3a**（多仓下设计追溯验证的唯一执行权威）。
 
 ## 多仓下的执行位置
@@ -17,7 +17,7 @@
 **【强制】进入 M-3a 时，必须向用户输出：**
 "M-3a: 各仓设计追溯验证 — 设计文档已生成，正在通过 subagent 并行执行各仓 cross-doc-checker L2/L3 验证..."
 
-**【强制】`design_traceability` 启用时，M-3a 是 Phase 9 完成或跳过之后、M-3b（design-doc-reviewer 审查）之前的必经关卡。不得绕过已启用的 M-3a；关闭时按计划跳过，并继续检查其后的通用插槽。**
+**【强制】M-3a 是 M-2（各仓按仓生成）和 M-3b（design-doc-reviewer 审查）之间的必经关卡。禁止跳过 M-3a 直接进入 M-3b。**
 
 **【强制】禁止主会话直接执行追溯验证** — 多仓场景下，各仓的 L2/L3 验证必须在子代理中并行执行。主会话直接执行等于将各仓串行化，违反多仓并行设计。
 

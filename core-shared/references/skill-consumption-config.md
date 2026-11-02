@@ -23,13 +23,17 @@
 1. `BUILT_IN_STEPS_BY_SKILL`：在 design / apply 中各注册 `skill_consumption`，`default=False`、`depends_on=[]`，`ref_file.single` / `ref_file.multi` 均为 `references/skill-consumption.md`（相对所属 Skill 安装目录）。design 的 `at=step-8` 对应 Phase 9；apply 的 `at=step-9` 对应 Step 9。
 2. `FIXED_STEPS` / `FIXED_STEPS_BY_SKILL`：插入对应步骤位，后续编号顺延，并同步注册项的位置与步骤标签。design 共 12 步，apply 共 16 步；计划中的步骤位保持连续。
 3. `TEMPLATE_JSONC`：两个命名空间的内置开关区增加 `"skill_consumption": false`，删除上一版同名自定义 reference 对象。design 命名空间仍保留原有一层示例注释；提取该命名空间后，布尔键为有效的 `false` 配置。
-4. 保留上一版 `_fix_restored_entry_separators` 的首项逗号修复：`if not code.endswith(("{", ",")):`。这是通用自定义步骤恢复修复，与本内置开关独立。
+4. 同步新增步骤后的阶段数量，以及 `expert_experience` 的职责描述：它准备已有经验上下文，任务 Skill 的查找、确认、安装与关联由独立的 `skill_consumption` 步骤承担。
+
+原有配置保存、JSONC 处理、自定义步骤恢复、依赖处理和一致性检查函数保持原实现，本次不修复这些通用函数的既有问题。
 
 [模板常量](../../patches/flow_config_template.py) 仅供核对，不能替代注册表和步骤顺序修改，也不能覆盖整个模块。分发时同时同步本仓的阶段骨架、步骤表和引用文件，避免旧编号与新计划混用。
 
 ## 应用补丁
 
 两份补丁择一使用：最初提供的源码使用 [完整补丁](../../patches/skill-consumption-template.patch)；已经应用上一版自定义步骤补丁的源码使用 [升级补丁](../../patches/skill-consumption-builtin-upgrade.patch)。后者将原自定义声明移除并完成内置注册。
+
+若上述注册、编号和模板开关已经完成，仅核对 [消费元数据差异](../../patches/skill-consumption-metadata.patch)，按当前源码已有内容合入；该差异不修改任何通用函数。
 
 在完整 CoreHarness 仓库根目录执行（将 `/path/to/sdd` 替换为本仓位置；升级时替换补丁文件名）：
 

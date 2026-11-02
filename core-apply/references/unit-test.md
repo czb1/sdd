@@ -1,6 +1,6 @@
 # Step 13: 单元测试环节（单仓模式指令）
 
-> 本文件为可配置步骤 `unit_test` 的指令文件（单仓版）。仅在执行计划 `steps` 含 `config_key=unit_test`、`type=built_in`、`enabled=true` 的条目时，由骨架读取该条目的 `ref_file.single` / `ref_file.multi` 后执行。
+> 本文件为可配置步骤 `unit_test` 的指令文件（单仓版）。仅在执行计划含 `key=unit_test` 条目时被 Read。
 
 **UT 范围**：代码生成任务（Step 10）产出的代码文件，按 delta_test_design.md 定义覆盖。
 

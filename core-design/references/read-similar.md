@@ -1,6 +1,6 @@
 # Phase 5: 读取相似需求参考（指令文件）
 
-> 本文件为可配置步骤 `read_similar` 的指令文件（单仓/多仓通用，无模式差异）。仅在执行计划 `steps` 含 `config_key=read_similar`、`type=built_in`、`enabled=true` 的条目时，由骨架读取该条目的 `ref_file.single` / `ref_file.multi` 后执行。
+> 本文件为可配置步骤 `read_similar` 的指令文件（单仓/多仓通用，无模式差异）。仅在执行计划含 `key=read_similar` 条目时被 Read。
 
 **执行位置**：Phase 4（代码理解）之后、Phase 6（读取 brainstorming design.md）之前。
 

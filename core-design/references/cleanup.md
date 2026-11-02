@@ -1,6 +1,6 @@
 # Phase 12: 清理临时文件（单仓模式指令文件）
 
-> 本文件为可配置步骤 `cleanup` 的指令文件（单仓版）。仅在执行计划 `steps` 含 `config_key=cleanup`、`type=built_in`、`enabled=true` 的条目时，由骨架读取该条目的 `ref_file.single` / `ref_file.multi` 后执行。
+> 本文件为可配置步骤 `cleanup` 的指令文件（单仓版）。仅在执行计划含 `key=cleanup` 条目时被 Read。
 
 **执行位置**：Phase 11（design-doc-reviewer 审查）完成后执行。如 Phase 10/11 被关闭，则 Phase 9 完成或跳过后执行。
 

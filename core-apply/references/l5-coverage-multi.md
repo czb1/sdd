@@ -1,6 +1,6 @@
 # Step 14: Gate-2 L5 UT覆盖度验证（多仓模式指令）
 
-> 本文件为可配置步骤 `l5_coverage` 的指令文件（多仓版）。仅在执行计划 `steps` 含 `config_key=l5_coverage`、`type=built_in`、`enabled=true` 的条目时，由骨架读取该条目的 `ref_file.single` / `ref_file.multi` 后执行。
+> 本文件为可配置步骤 `l5_coverage` 的指令文件（多仓版）。仅在执行计划含 `key=l5_coverage` 条目时被 Read。
 > **依赖规则**：`l5_coverage` 依赖 `unit_test`。若 `unit_test` 关闭，本步骤自动降级，本文件不被 Read。
 > 指令来源：`references/multi-repo.md` 的 **M-6**（多仓下 L5 验证的唯一执行权威，与 multi-repo.md 内容一致）。
 

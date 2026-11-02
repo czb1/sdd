@@ -21,9 +21,7 @@ TEMPLATE_JSONC = """// =========================================================
     "unit_test": true,      // Step 13 单元测试（l5_coverage 依赖它，关闭则 L5 自动降级）
     "l5_coverage": true,     // Step 14 L5 UT 覆盖度验证
     "completion_report": true, // Step 15 完成或暂停时展示状态
-    // ---- 自定义步骤（未注释即启用；最后一个有效键不可带尾逗号）----
-    // judgment_ladder 是默认启用的模板示例；整块注释可关闭。
-    // 下方 compile / codebase_scan 示例默认关闭，取消整块注释可启用。
+    // ---- 自定义步骤示例（取消注释即启用；注意：最后一个有效键不可带尾逗号）----
     "judgment_ladder": {
       "type": "reference",
       "file": "references/judgment-ladder.md",

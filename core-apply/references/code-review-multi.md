@@ -1,6 +1,6 @@
 # Step 12: Code Review（多仓模式指令）
 
-> 本文件为可配置步骤 `code_review` 的指令文件（多仓版）。仅在执行计划 `steps` 含 `config_key=code_review`、`type=built_in`、`enabled=true` 的条目时，由骨架读取该条目的 `ref_file.single` / `ref_file.multi` 后执行。
+> 本文件为可配置步骤 `code_review` 的指令文件（多仓版）。仅在执行计划含 `key=code_review` 条目时被 Read。
 > 指令来源：`references/multi-repo.md` 的 **M-4**（多仓下 Code Review 的唯一执行权威，与 multi-repo.md 内容一致）。
 > Code Review 检查范围：读取已完成（`- [x]`）代码生成任务的"生成文件"字段，汇总为增量变更文件列表——仅审查这些文件，禁止全量扫描。
 
