@@ -1,23 +1,37 @@
 # sdd
 
-CoreSpec 的 core-design / core-apply 指令文件及 core-shared 共享文档。
+CoreSpec 的 core-design / core-apply 指令文件、core-shared 共享文档及流程编排模块。
 
-任务 Skill 消费统一为**内置可启停步骤**：design / apply 各自通过 `skill_consumption: true/false` 控制，均默认 `false`。执行计划只在 `steps` 中生成启用的 `built_in` 条目，骨架从其 `ref_file.single` / `ref_file.multi` 加载指令。`expert_experience` 保持独立的内置步骤。配置、迁移和执行位置见 [专属配置说明](core-shared/references/skill-consumption-config.md)。
+本仓已整合 master 的配置驱动流程与 main 的任务 Skill 消费能力：首次运行自动初始化配置，每次运行按配置重建执行计划，不再要求流程配置确认。调整步骤直接编辑 `~/.corespec/flow-config.json`，下次运行自动生效。
 
-core-design 在 Phase 8 生成任务后，由新增 Phase 9 完成查找、确认、安装与关联；core-apply 在新增 Step 9 准备一次，Step 10 按任务消费。后续步骤编号及单/多仓引用同步顺延，通用自定义插槽保持独立。
+## 任务 Skill 消费
 
-本仓不含完整 CoreSpec 运行时，`flow_config.py` 的修改以补丁交付，覆盖内置注册表、完整步骤顺序和 `TEMPLATE_JSONC`：
+任务 Skill 消费是**内置可启停步骤**：design / apply 各自通过 `skill_consumption: true/false` 控制，均默认 `false`。仅启用时从执行计划条目的 `ref_file.single` / `ref_file.multi` 加载消费指令；关闭时不检索、下载、消费关联内容或回写字段，已有字段和文件保留。
 
-本次范围仅限 Skill 消费流程。原有配置保存、JSONC 处理、自定义步骤恢复、依赖处理和一致性检查函数保持原实现；此前提供的通用运行时修复工具及其回归测试已撤回。
+- core-design：Phase 8 生成任务后，Phase 9 完成查找、候选确认、安装与关联；多仓由主会话在 M-2 全部完成后聚合执行一次。
+- core-apply：Step 9 准备一次，Step 10 按任务消费；多仓子代理从片段 `plan_path` 指向的根计划读取内置开关。
+- `expert_experience` 与消费开关独立；通用自定义插槽继续按自己的配置执行。流程配置自动生效不替代候选选择、安装冲突等业务确认。
 
-- 从最初提供的源码合入：[完整补丁](patches/skill-consumption-template.patch)。
-- 已应用上一版自定义步骤补丁：[升级补丁](patches/skill-consumption-builtin-upgrade.patch)。两份补丁择一使用。
-- [模板常量](patches/flow_config_template.py) 仅供核对；只替换模板不能完成内置化，也不能用它覆盖完整模块。
-- [布尔配置示例](examples/flow-config.skill-consumption.jsonc) 用于补充已有配置；旧的同名自定义对象须整体替换为布尔值。
-- 已完成内置注册、编号和模板开关迁移的版本，仅核对 [消费元数据差异](patches/skill-consumption-metadata.patch)：同步新增步骤后的阶段数量，以及 `expert_experience` 与任务 Skill 消费的职责说明，按当前源码已有内容合入。
+配置和迁移见 [任务 Skill 消费配置](core-shared/references/skill-consumption-config.md)，开关示例见 [flow-config.skill-consumption.jsonc](examples/flow-config.skill-consumption.jsonc)。
 
-保留原有 [共享 SKILL 骨架](core-shared/SKILL.md)、[模板自定义命令](core-shared/references/template-commands.md)和[模板使用指南](core-shared/references/template-guide.md)。通用流程编排仍见 [flow-config 配置指南](core-shared/references/flow-config-guide.md)，业务操作细节集中于专属消费指令。
+## 源码与集成
 
-回归脚本：[test_skill_consumption_flow.py](tests/test_skill_consumption_flow.py)，通过 `--flow-config` 指定应用消费补丁后的完整文件，覆盖默认关闭、四种启停组合、已有布尔开关持久化、旧对象拒绝、步骤顺序及其他步骤独立性。本仓缺少完整运行时，完整 CLI 初始化和多仓执行端到端验证仍需在目标框架完成。
+[core-shared/scripts/flow_config.py](core-shared/scripts/flow_config.py) 是完整、可独立运行的单文件模块，已将原先上传的 `flow_config.py` / `flow_config2.py` 按顺序合并。无需自行拼接，也不要再叠加第二段文件。
 
-若此前已在本地运行自动修复工具，仓库回退不会自动还原本地 `flow_config.py`。可对照同目录的 `flow_config.py.before-flow-config-fixes.bak` 恢复原有通用函数、删除新增的 `_flow_jsonc_*` 辅助函数，并保留上面的 Skill 消费注册、步骤和模板配置。
+同步到完整 CoreHarness 时，保持 `core-shared/scripts/flow_config.py` 路径，并一并同步本仓的 design / apply 骨架、步骤表与引用文件。以该完整源码为准；[模板常量](patches/flow_config_template.py) 仅供核对，不能覆盖完整模块。
+
+需要在与本次 master 相同的基线（`8eb0857`）上按差异合入时，先合并原来的两段文件，再使用 [消费兼容补丁](patches/skill-consumption-template.patch)。该补丁只调整消费注册、步骤编号和模板，不改 master 的通用运行时函数。旧的 builtin-upgrade / metadata 补丁只保留作历史迁移参考，不用于当前基线。
+
+通用配置见 [flow-config 用户指南](core-shared/references/flow-config-guide.md)，实现约定见 [开发者指导](开发者指导.md)。保留 [共享 SKILL 骨架](core-shared/SKILL.md)、[模板自定义命令](core-shared/references/template-commands.md)及[模板使用指南](core-shared/references/template-guide.md)。
+
+## 验证
+
+```bash
+python -m py_compile core-shared/scripts/flow_config.py
+python -m unittest discover -s tests -v
+python core-shared/scripts/flow_config.py --describe --json --skill core-design
+```
+
+回归覆盖默认关闭、四种启停组合、直接编辑配置后的重建、静默初始化、非法配置保留旧计划、步骤顺序、独立自定义插槽，以及多仓片段与根计划门控。也可通过 `python tests/test_skill_consumption_flow.py --flow-config /path/to/flow_config.py -v` 验证目标模块。
+
+本仓仍不包含完整 CoreHarness（各 Skill 的 main.py、core_paths、模板包等）及内网服务环境；完整 Agent 多仓执行、真实 CLI 检索和下载需在目标环境验收。

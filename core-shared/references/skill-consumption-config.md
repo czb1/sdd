@@ -25,17 +25,13 @@
 3. `TEMPLATE_JSONC`：两个命名空间的内置开关区增加 `"skill_consumption": false`，删除上一版同名自定义 reference 对象。design 命名空间仍保留原有一层示例注释；提取该命名空间后，布尔键为有效的 `false` 配置。
 4. 同步新增步骤后的阶段数量，以及 `expert_experience` 的职责描述：它准备已有经验上下文，任务 Skill 的查找、确认、安装与关联由独立的 `skill_consumption` 步骤承担。
 
-原有配置保存、JSONC 处理、自定义步骤恢复、依赖处理和一致性检查函数保持原实现，本次不修复这些通用函数的既有问题。
+本仓已提供完整的 [flow_config.py](../scripts/flow_config.py)，原两段源码已合并为一个模块。保留 master 的配置解析、自动初始化、按配置重建计划、多仓片段与依赖处理实现，不恢复旧的交互确认或配置写回接口。
 
-[模板常量](../../patches/flow_config_template.py) 仅供核对，不能替代注册表和步骤顺序修改，也不能覆盖整个模块。分发时同时同步本仓的阶段骨架、步骤表和引用文件，避免旧编号与新计划混用。
+[模板常量](../../patches/flow_config_template.py) 与当前源码同步，仅供核对；只替换模板不能完成内置化。同步到目标框架时，同时同步本仓的阶段骨架、步骤表和引用文件，避免旧编号与新计划混用。
 
-## 应用补丁
+## 按差异集成
 
-两份补丁择一使用：最初提供的源码使用 [完整补丁](../../patches/skill-consumption-template.patch)；已经应用上一版自定义步骤补丁的源码使用 [升级补丁](../../patches/skill-consumption-builtin-upgrade.patch)。后者将原自定义声明移除并完成内置注册。
-
-若上述注册、编号和模板开关已经完成，仅核对 [消费元数据差异](../../patches/skill-consumption-metadata.patch)，按当前源码已有内容合入；该差异不修改任何通用函数。
-
-在完整 CoreHarness 仓库根目录执行（将 `/path/to/sdd` 替换为本仓位置；升级时替换补丁文件名）：
+通常直接使用上面的完整源码。若目标文件来自本次 master 基线 `8eb0857`，先将原 `flow_config.py` 和 `flow_config2.py` 按顺序拼成一个文件，再应用 [消费兼容补丁](../../patches/skill-consumption-template.patch)：
 
 ```bash
 git apply --check --directory=coreharness-spec/skills /path/to/sdd/patches/skill-consumption-template.patch
@@ -43,15 +39,15 @@ git apply --directory=coreharness-spec/skills /path/to/sdd/patches/skill-consump
 python /path/to/sdd/tests/test_skill_consumption_flow.py --flow-config coreharness-spec/skills/core-shared/scripts/flow_config.py -v
 ```
 
-若目标仓根目录直接包含 `core-shared/`，去掉 `--directory=coreharness-spec/skills`，并相应调整测试路径。补丁按代码上下文匹配；检查不通过时对照当前实现合并，不能用片段覆盖完整文件。
+若目标仓根目录直接包含 `core-shared/`，去掉 `--directory=coreharness-spec/skills`，并相应调整测试路径。其他基线须按当前源码对照合并；检查不通过时不能强行应用或用片段覆盖完整模块。旧的 builtin-upgrade / metadata 补丁仅保留作历史迁移参考，不叠加到本次合并源码。
 
 ## 已有配置迁移与生效
 
 - 若 `~/.corespec/flow-config.json` 已含上一版 `"skill_consumption": { "type": "reference", ... }`，将**整个同名对象**（包括其注释示例）替换成一个布尔键；原来启用且仍要启用时设为 `true`，原来关闭则设为 `false`。不能同时保留同名对象和布尔键，也不把它改名后继续挂在通用插槽中。
 - 新版注册表会拒绝同名自定义对象及其他非布尔值，不静默迁移或隐式开启。
 - 已有命名空间按原初始化规则保留，修改模板不会覆盖它；只补入缺失的布尔键即可。缺少命名空间时可用对应 `main.py flow-config --init --skill <name>` 初始化。
-- 以后使用 `main.py flow-config --apply --skill <name> --changes skill_consumption=true` 或 `skill_consumption=false` 调整；内置步骤关闭使用 `false`。
-- 修改后重新执行两个 Skill 的 Step 0，重建并确认执行计划和 skipped 标记。步骤编号已更新，不能沿用旧执行计划或旧片段；这些产物由框架生成，禁止手工修改。
+- 以后直接编辑 `~/.corespec/flow-config.json` 中对应命名空间的 `skill_consumption`：`true` 开启，`false` 关闭。下次运行自动读取，不再使用旧的配置写回命令。
+- 下次运行对应 Skill 的 Step 0 时自动重建执行计划和 skipped 标记，无需流程配置确认。候选选择、安装冲突等业务确认仍按专属指令执行。步骤编号已更新，不能沿用旧执行计划或旧片段；这些产物由框架生成，禁止手工修改。
 
 ## 执行期规则
 
@@ -65,4 +61,4 @@ python /path/to/sdd/tests/test_skill_consumption_flow.py --flow-config coreharne
 - [执行阶段指令](../../core-apply/references/skill-consumption.md)
 - [共享消费规则](skill-consumption.md)
 
-回归覆盖两阶段四种启停组合、默认关闭、布尔开关持久化与指纹、旧对象拒绝、连续步骤顺序、ref_file 条件加载、expert_experience 与通用自定义插槽独立性。由于本仓缺少完整 main.py 与运行时，完整初始化、确认调整和多仓执行端到端验收仍需在目标框架完成。
+回归覆盖两阶段四种启停组合、默认关闭、直接编辑配置后的计划重建、首次配置和命名空间静默初始化、非法配置保留旧计划、旧对象拒绝、连续步骤顺序、ref_file 条件加载、expert_experience 与通用自定义插槽独立性，以及多仓片段指向根计划的门控。运行 `python -m unittest discover -s tests -v`。本仓仍缺少各 Skill 的 main.py、core_paths、模板包及内网服务，完整 Agent 多仓执行和真实检索下载须在目标框架验收。
