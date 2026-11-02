@@ -21,7 +21,7 @@
 2. **准备候选**：每个 1.x 任务预判最多 Top3 Skill，给出名称、描述、一句话理由及首选，保留实际返回的 ID / 版本供下载。业务路径未命中时沿用 `skill search` 最多 3 个 Skill / `experience search` 最多 3 条经验的兜底检索；通用能力只检索 Skill。没有结果不凑数、不强选，不以 `scene-search` 代替场景关联查询。
 3. **一次批量确认**：按任务组展示候选表，向用户发起一次 AskUserQuestion，允许在同一次回答中按任务 / 任务组指定 Skill 或不使用；不逐任务弹窗。候选选项标注「✓ 推荐」及理由，固定附加「全部由 Agent 决定」和「本次不使用外部 Skill」。拟采用的经验也随表展示。
 4. **锁定选择**：同一回答冲突时，全局不使用优先于逐任务指定，逐任务指定优先于任务组指定，最后才是默认首选。明确不使用不得回退到推荐项，也不得通过新获取经验绕过。「全部由 Agent 决定」或跳过 / 未选时采用合适的首选；交互工具结束并返回无答案时也按此默认规则处理，不将仍在等待的提问判作无响应。部分任务未指定时仅对这些任务采用默认值。最终输出再列明 Agent 自选任务，不追加逐任务确认。
-5. **按名称去重并按 ID 下载**：扫描本轮已锁定的 Skill 集合，按 skill name 去重后调用 `skill download --skill_id <真实ID> --user_id <调用方工号> --output <临时目录>`；版本已知时追加 `--version`，缺少 ID 时按共享规则定位同一个 Skill。多个任务引用同一名称只下载一次；候选和选择临时保存在会话中，不落独立索引。
+5. **按名称去重并按 ID 下载**：扫描本轮已锁定的 Skill 集合，按 skill name 去重后调用 `skill download --skill_id <真实ID> --output <临时目录>`，调用者身份由登录会话提供；版本已知时追加 `--version`，缺少 ID 时按共享规则定位同一个 Skill。多个任务引用同一名称只下载一次；候选和选择临时保存在会话中，不落独立索引。
 6. **项目级安装**：先解压到临时目录，校验名称、路径未越界和内容可读，再原子替换 .codeagent/skills/<name>/；只覆盖本轮锁定的同名 Skill，不动其他目录。失败保留旧目录，不安装半成品、不宣称新包成功可用。
 7. **回写任务**：成功后更新每个任务的 Skill 字段，记录实际名称、本地路径及选择来源。明确不使用也写回，以便 core-apply 尊重；无候选、获取失败则如实标注。最后报告选择来源、安装及回写结果。
 
@@ -93,7 +93,7 @@ end
 Agent -> Agent: 按skill name去重锁定集合
 loop 每个锁定Skill
   Agent -> Agent: 缺少ID时定位并核对同一Skill
-  Agent -> CLI: skill download --skill_id <真实ID>\n--user_id <工号> --output <临时目录>
+  Agent -> CLI: skill download --skill_id <真实ID>\n--output <临时目录>（自动读取登录身份）
   CLI -> API: 按 Skill ID 获取下载地址并下载
   API --> CLI: Skill包
   CLI --> Agent: Skill包

@@ -206,7 +206,7 @@ AskUserQuestion({
 ### Phase 1: Version Check [可配置: version_check]
 
 > 本步骤为可配置步骤。执行与否以构建执行计划持久化的 execution-plan-core-design.json 为准：
-> - **执行计划 steps 数组含 `config_key=version_check`（type=built_in）条目** → 从该条目 `ref_file.single` 字段取指令文件（动态路径解析参见本SKILL Reference文件路径解析章节）并 Read，按其中指令执行
+> - **执行计划 steps 数组含 `config_key=version_check`（`type=built_in`、`enabled=true`）条目** → 从该条目 `ref_file.single` 字段取指令文件（动态路径解析参见本SKILL Reference文件路径解析章节）并 Read，按其中指令执行
 > - **执行计划不含本步骤** → 直接进入 Phase 2（指令文件不加载，内容不进上下文）
 
 ### Phase 2: Fetch Design Rules + 加载设计原则与视图约束
@@ -214,7 +214,7 @@ AskUserQuestion({
 > #### 2.1 多语言规范获取 [可配置: fetch_rules]
 >
 > 本步骤为可配置步骤（B 档双层语义）。执行与否以构建执行计划持久化的 execution-plan-core-design.json 为准：
-> - **执行计划 steps 数组含 `config_key=fetch_rules`（type=built_in）条目** → 从该条目 `ref_file.single` 字段取指令文件（动态路径解析参见本SKILL Reference文件路径解析章节）并 Read，按其中指令执行 Step 1~3（多语言规范获取：code-rule-tree → 筛选 → code-rule-content），完成后得到 `language-specific design specifications`。
+> - **执行计划 steps 数组含 `config_key=fetch_rules`（`type=built_in`、`enabled=true`）条目** → 从该条目 `ref_file.single` 字段取指令文件（动态路径解析参见本SKILL Reference文件路径解析章节）并 Read，按其中指令执行 Step 1~3（多语言规范获取：code-rule-tree → 筛选 → code-rule-content），完成后得到 `language-specific design specifications`。
 > - **执行计划不含本步骤** → 跳过 Step 1~3 的 code-rule 拉取流程，`language-specific design specifications` 视为空集合，直接进入 2.2（指令文件不加载，内容不进上下文）
 >
 > **【B 档双层语义】**：`fetch_rules` 开关**仅控制** 2.1 的 code-rule 拉取流程（Step 1~3）。下方 2.2 的 GATE（design-principles.md / design-views.md）为**无条件加载**，与 `fetch_rules` 开关**正交**——即 `fetch_rules` 关闭时 2.1 跳过，但 2.2 的两个 GATE 仍必须执行。
@@ -262,7 +262,7 @@ AskUserQuestion({
 ### Phase 5: Read Similar Changes Reference [可配置: read_similar]
 
 > 本步骤为可配置步骤。执行与否以构建执行计划持久化的 execution-plan-core-design.json 为准：
-> - **执行计划 steps 数组含 `config_key=read_similar`（type=built_in）条目** → 从该条目 `ref_file.single` 字段取指令文件（动态路径解析参见本SKILL Reference文件路径解析章节）并 Read，按其中指令执行（读取相似需求参考归档）
+> - **执行计划 steps 数组含 `config_key=read_similar`（`type=built_in`、`enabled=true`）条目** → 从该条目 `ref_file.single` 字段取指令文件（动态路径解析参见本SKILL Reference文件路径解析章节）并 Read，按其中指令执行（读取相似需求参考归档）
 > - **执行计划不含本步骤** → 直接进入 Phase 6（指令文件不加载，内容不进上下文）
 >
 > **执行位置**：Phase 4（代码理解）之后、Phase 6（读取 brainstorming design.md）之前执行。。
@@ -278,7 +278,7 @@ AskUserQuestion({
 ### Phase 7: Prepare Existing Experience Context [可配置: expert_experience]
 
 > 本步骤为可配置步骤。执行与否以构建执行计划持久化的 execution-plan-core-design.json 为准：
-> - **执行计划 steps 数组含 `config_key=expert_experience`（type=built_in）条目** → 从该条目 `ref_file.single` 字段取指令文件（动态路径解析参见本SKILL Reference文件路径解析章节）并 Read，按其中指令执行（准备已有的项目级设计经验）
+> - **执行计划 steps 数组含 `config_key=expert_experience`（`type=built_in`、`enabled=true`）条目** → 从该条目 `ref_file.single` 字段取指令文件（动态路径解析参见本SKILL Reference文件路径解析章节）并 Read，按其中指令执行（准备已有的项目级设计经验）
 > - **执行计划不含本步骤** → 直接进入 Phase 8（指令文件不加载，内容不进上下文）
 >
 > **执行位置**：Phase 6（读取 brainstorming design.md）之后、Phase 8（生成设计文档）之前执行。
@@ -318,14 +318,14 @@ AskUserQuestion({
 ### Phase 10: 设计追溯验证（强制）[可配置: design_traceability]
 
 > 本步骤为可配置步骤。执行与否以构建执行计划持久化的 execution-plan-core-design.json 为准：
-> - **执行计划 steps 数组含 `config_key=design_traceability`（type=built_in）条目** → 本步骤强制不可跳过，按以下模式执行（单仓读取 `ref_file.single` 指令文件 / 多仓读取 `ref_file.multi` 指令文件并执行 M-3a）
+> - **执行计划 steps 数组含 `config_key=design_traceability`（`type=built_in`、`enabled=true`）条目** → 本步骤强制不可跳过，按以下模式执行（单仓读取 `ref_file.single` 指令文件 / 多仓读取 `ref_file.multi` 指令文件并执行 M-3a）
 > - **执行计划不含本步骤** → 本步骤整体跳过，**Phase 10→11 衔接豁免**（不检查"已通过 Agent tool 启动子代理"），直接进入 Phase 11
 > - 多仓模式：`design_traceability` 关闭 → M-3a 整体跳过，M-3a 的必经关卡/禁止主会话/ERROR 禁止推迟强制位同步豁免（见 references/multi-repo.md）
 
 ### Phase 11: design-doc-reviewer 审查 [可配置: design_review]
 
 > 本步骤为可配置步骤。执行与否以构建执行计划持久化的 execution-plan-core-design.json 为准：
-> - **执行计划 steps 数组含 `config_key=design_review`（type=built_in）条目** → 本步骤强制不可跳过，按以下模式执行（单仓读取 `ref_file.single` 指令文件 / 多仓读取 `ref_file.multi` 指令文件并执行 M-3b）
+> - **执行计划 steps 数组含 `config_key=design_review`（`type=built_in`、`enabled=true`）条目** → 本步骤强制不可跳过，按以下模式执行（单仓读取 `ref_file.single` 指令文件 / 多仓读取 `ref_file.multi` 指令文件并执行 M-3b）
 > - **执行计划不含本步骤** → 本步骤整体跳过，**Phase 11→12 衔接豁免**（不检查"已通过 Agent tool 启动子代理"），直接进入 Phase 12
 > - 多仓模式：`design_review` 关闭 → M-3b 整体跳过，M-3b 的必经关卡/禁止主会话/ERROR 禁止推迟强制位同步豁免（见 references/multi-repo.md）
 > - **`design_traceability` 关闭但 `design_review` 开启时**：Phase 9 完成或跳过后进入 M-3b，"M-3a 全过后才执行 M-3b"依赖随 `design_traceability` 关闭豁免
@@ -333,7 +333,7 @@ AskUserQuestion({
 ### Phase 12: 清理临时文件 [可配置: cleanup]
 
 > 本步骤为可配置步骤。执行与否以构建执行计划持久化的 execution-plan-core-design.json 为准：
-> - **执行计划 steps 数组含 `config_key=cleanup`（type=built_in）条目** → 本步骤强制不可跳过（core-design 流程最后一步），按以下模式执行（单仓读取 `ref_file.single` 指令文件 / 多仓读取 `ref_file.multi` 指令文件并执行多仓清理）
+> - **执行计划 steps 数组含 `config_key=cleanup`（`type=built_in`、`enabled=true`）条目** → 本步骤强制不可跳过（core-design 流程最后一步），按以下模式执行（单仓读取 `ref_file.single` 指令文件 / 多仓读取 `ref_file.multi` 指令文件并执行多仓清理）
 > - **执行计划不含本步骤** → 本步骤整体跳过，**必须显式记录"cleanup 已关闭，临时文件残留"后输出执行总结并宣布"core-design 流程执行完毕"** — 关闭时残留文件由用户或后续人工处理，不阻断流程收尾
 > - 多仓模式：`cleanup` 关闭 → 跳过双层清理（项目级 + 各仓级），临时文件残留
 

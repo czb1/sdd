@@ -253,7 +253,7 @@ sys.exit(result.returncode)
 **Step 1: Version Check [可配置: version_check]**
 
 > 本步骤为可配置步骤。执行与否以 Step 0 持久化的 execution-plan-core-apply.json 为准：
-> - **执行计划 steps 数组含 `config_key=version_check`（type=built_in）条目** → 从该条目 `ref_file.single` 字段取指令文件（动态路径解析参见本SKILL Reference文件路径解析章节）并 Read，按其中指令执行
+> - **执行计划 steps 数组含 `config_key=version_check`（`type=built_in`、`enabled=true`）条目** → 从该条目 `ref_file.single` 字段取指令文件（动态路径解析参见本SKILL Reference文件路径解析章节）并 Read，按其中指令执行
 > - **执行计划不含本步骤** → 直接进入下一步（指令文件不加载，内容不进上下文）
 >
 > **执行位置**：第一阶段 Step 0（构建执行计划）之后立即执行，作为第一阶段的第二个动作。
@@ -307,7 +307,7 @@ Always announce: "Using change: <name>" and how to override (e.g., `/core-apply 
    读取后输出: "GATE PASSED: references/multi-repo.md loaded"。
    <!-- /GATE:REF -->
 4. **路由判定后必须补充创建分支 task（MANDATORY）**：执行计划在 Step 0 构建时尚未运行本步多仓检测，单仓/多仓分支任务无法在计划确认时创建。因此**路由结果输出后、进入主流程主体前，必须立即用 TaskCreate 补齐分支任务**（单仓 → Step 4~10 各一个 task；多仓 → M-1~M-6 各一个 task，关闭的 M 不创建）。禁止跳过。
-5. 按 references/multi-repo.md 执行 M-1~M-6（**跳过Step 4~10 + 门控检查**，M-2内部子代理按拓扑分批并行读取context files和执行代码生成；M-3~M-6 为**可配置步骤**，执行与否以执行计划为准——含对应 `key` 条目则按 `ref_file.multi` 指令文件执行，不含则跳过，详见 multi-repo.md 头部"可配置步骤与编排点"）
+5. 按 references/multi-repo.md 执行 M-1~M-6（**跳过Step 4~10 + 门控检查**，M-2内部子代理按拓扑分批并行读取context files和执行代码生成；M-3~M-6 为**可配置步骤**，执行与否以执行计划为准——含对应 `config_key`、`type=built_in`、`enabled=true` 的条目则按 `ref_file.multi` 指令文件执行，不含则跳过，详见 multi-repo.md 头部"可配置步骤与编排点"）
    - M-1: 多仓检测（读取repo_assignments.json，involved_repos>1 = 多仓）
    - M-2: 按仓拓扑分批 + 子代理并行代码生成（替代Step 4~10）
    - M-3: 各仓L4实现追溯验证（subagent并行，替代门控1 L4）**[可配置: l4_review]**
@@ -316,8 +316,8 @@ Always announce: "Using change: <name>" and how to override (e.g., `/core-apply 
    - M-6: 各仓L5 UT覆盖度验证（subagent并行，替代门控2 L5）**[可配置: l5_coverage]**
 
 **【多仓可配置步骤执行规则】**（与单仓 Step 11-14 同一权威，执行计划是唯一数据源）：
-- 可配置步骤（M-3~M-6）：查 `execution-plan-core-apply.json` 的 `steps` 数组。含 `config_key=l4_review`/`code_review`/`unit_test`/`l5_coverage`（type=built_in）条目 → 从条目 `ref_file.multi` 取指令文件并 Read 执行；不含 → 跳过，**不 Read 指令文件**（内容不进上下文），直接进入下一 M 阶段
-- 主会话执行的可配置步骤（不映射 M 阶段，与单仓同一机制、同一执行计划条目）：`version_check`（Step 1，M-1 之前）/ `show_progress`（Step 8，M-2 之前）/ `skill_consumption`（Step 9，M-2 之前主会话准备、M-2 内每任务消费，默认关闭）/ `completion_report`（Step 15，M-6 之后 on-completion）。这些步骤的 `ref_file.multi` 为单多仓通用文件，存在性判断同单仓
+- 可配置步骤（M-3~M-6）：查 `execution-plan-core-apply.json` 的 `steps` 数组。含 `config_key=l4_review`/`code_review`/`unit_test`/`l5_coverage`（`type=built_in`、`enabled=true`）条目 → 从条目 `ref_file.multi` 取指令文件并 Read 执行；不含 → 跳过，**不 Read 指令文件**（内容不进上下文），直接进入下一 M 阶段
+- 主会话执行的可配置步骤（不映射 M 阶段，与单仓同一机制、同一执行计划条目）：`version_check`（Step 1，M-1 之前）/ `show_progress`（Step 8，M-2 之前）/ `skill_consumption`（Step 9，M-2 之前主会话准备、M-2 内每任务消费，默认关闭）/ `completion_report`（Step 15，M-6 之后 on-completion）。这些步骤的 `ref_file.multi` 为单多仓通用文件，启用判断同单仓
 - 编排点插槽（多仓下同样查执行计划 `orchestration_points` 对象）：`pre-codegen`（M-2 子代理内 task 级，10.3 与 10.4 之间）/ `post-codegen`（M-2 后）/ `post-l4`（M-3 后）/ `post-review`（M-4 后）/ `post-ut`（M-5 后）。对应插槽数组含条目 → 按条目 `type` 执行（reference 型 Read `file` 指令文件 / skill 型调用 skill，`run_mode=subagent` 时 spawn 独立子代理）；不含 → 跳过，指令文件不加载
 - **多仓子代理的计划输入**：Step 0 生成 `execution-plan-fragment-core-apply-<repo>.json` 片段文件（`main.py flow-config --fragment --repo <repo> --repo-cwd <路径> --project-root <根项目绝对路径>`，内容为 `repo`/`repo_cwd`/`plan_path`/`orchestration_points` 五插槽；**必须显式传 `--project-root`**，否则以 cwd 解析根项目，多仓子代理 cwd 是各仓目录时片段会写到错误位置；`--fragment` 无论是否带 `--json` 都落盘片段文件，`--json` 仅额外在 stdout 输出一份），M-2 子代理通过输入文件接收本仓片段，按片段中插槽条目执行（pre-codegen 任务级、post-codegen 生成完成后），不在插槽的编排点不执行；所有仓共享同一根执行计划。子代理同时读取片段 `plan_path` 指向的根计划，仅从其 `steps` 判断内置步骤启停；片段不含 `steps`，不得用插槽条目推断内置步骤状态
 - `l5_coverage` 依赖 `unit_test`：UT 关闭 → L5 自动降级（disabled 区 `dependency_downgraded`），两指令文件均不 Read
@@ -416,7 +416,7 @@ The files depend on the schema being used:
 ### 8. Show current progress **[可配置: show_progress]**
 
 > 本步骤为可配置步骤。执行与否以 Step 0 持久化的 execution-plan-core-apply.json 为准：
-> - **执行计划 steps 数组含 `config_key=show_progress`（type=built_in）条目** → 从该条目 `ref_file.single` 字段取指令文件（动态路径解析参见本SKILL Reference文件路径解析章节）并 Read，按其中指令执行
+> - **执行计划 steps 数组含 `config_key=show_progress`（`type=built_in`、`enabled=true`）条目** → 从该条目 `ref_file.single` 字段取指令文件（动态路径解析参见本SKILL Reference文件路径解析章节）并 Read，按其中指令执行
 > - **执行计划不含本步骤** → 直接进入下一步（指令文件不加载，内容不进上下文）
 
 ### 9. 任务 Skill 准备与消费 [可配置: skill_consumption]
@@ -445,26 +445,26 @@ The files depend on the schema being used:
 ### 11. Gate-1: L4 实现追溯验证 **[可配置: l4_review]**
 
 > 本步骤为可配置步骤。执行与否以 Step 0 持久化的 execution-plan-core-apply.json 为准：
-> - **执行计划 steps 数组含 `config_key=l4_review`（type=built_in）条目** → 从该条目 `ref_file.single` 字段取指令文件（动态路径解析参见本SKILL Reference文件路径解析章节）并 Read，按其中指令执行
+> - **执行计划 steps 数组含 `config_key=l4_review`（`type=built_in`、`enabled=true`）条目** → 从该条目 `ref_file.single` 字段取指令文件（动态路径解析参见本SKILL Reference文件路径解析章节）并 Read，按其中指令执行
 > - **执行计划不含本步骤** → 直接进入下一步（指令文件不加载，内容不进上下文）
 
 
 ### 12. Code Review（所有语言） **[可配置: code_review]**
 
 > 本步骤为可配置步骤。执行与否以 Step 0 持久化的 execution-plan-core-apply.json 为准：
-> - **执行计划 steps 数组含 `config_key=code_review`（type=built_in）条目** → 从该条目 `ref_file.single` 字段取指令文件（动态路径解析参见本SKILL Reference文件路径解析章节）并 Read，按其中指令执行
+> - **执行计划 steps 数组含 `config_key=code_review`（`type=built_in`、`enabled=true`）条目** → 从该条目 `ref_file.single` 字段取指令文件（动态路径解析参见本SKILL Reference文件路径解析章节）并 Read，按其中指令执行
 > - **执行计划不含本步骤** → 直接进入下一步（指令文件不加载，内容不进上下文）
 
 ### 13. 单元测试环节 **[可配置: unit_test]**
 
 > 本步骤为可配置步骤。执行与否以 Step 0 持久化的 execution-plan-core-apply.json 为准：
-> - **执行计划 steps 数组含 `config_key=unit_test`（type=built_in）条目** → 从该条目 `ref_file.single` 字段取指令文件（动态路径解析参见本SKILL Reference文件路径解析章节）并 Read，按其中指令执行
+> - **执行计划 steps 数组含 `config_key=unit_test`（`type=built_in`、`enabled=true`）条目** → 从该条目 `ref_file.single` 字段取指令文件（动态路径解析参见本SKILL Reference文件路径解析章节）并 Read，按其中指令执行
 > - **执行计划不含本步骤** → 直接进入下一步（指令文件不加载，内容不进上下文）
 
 ### 14. Gate-2: L5 UT覆盖度验证 **[可配置: l5_coverage]**
 
 > 本步骤为可配置步骤。执行与否以 Step 0 持久化的 execution-plan-core-apply.json 为准：
-> - **执行计划 steps 数组含 `config_key=l5_coverage`（type=built_in）条目** → 从该条目 `ref_file.single` 字段取指令文件（动态路径解析参见本SKILL Reference文件路径解析章节）并 Read，按其中指令执行
+> - **执行计划 steps 数组含 `config_key=l5_coverage`（`type=built_in`、`enabled=true`）条目** → 从该条目 `ref_file.single` 字段取指令文件（动态路径解析参见本SKILL Reference文件路径解析章节）并 Read，按其中指令执行
 > - **执行计划不含本步骤** → 直接进入下一步（指令文件不加载，内容不进上下文）
 >
 > **依赖规则**：`l5_coverage` 依赖 `unit_test`。若 `unit_test` 关闭（配置或确认时取消），`l5_coverage` 自动降级（reason=`dependency_downgraded`），执行计划不含本步骤。
@@ -472,7 +472,7 @@ The files depend on the schema being used:
 ### 15. On completion or pause, show status **[可配置: completion_report]**
 
 > 本步骤为可配置步骤。执行与否以 Step 0 持久化的 execution-plan-core-apply.json 为准：
-> - **执行计划 steps 数组含 `config_key=completion_report`（type=built_in）条目** → 从该条目 `ref_file.single` 字段取指令文件（动态路径解析参见本SKILL Reference文件路径解析章节）并 Read，按其中指令执行
+> - **执行计划 steps 数组含 `config_key=completion_report`（`type=built_in`、`enabled=true`）条目** → 从该条目 `ref_file.single` 字段取指令文件（动态路径解析参见本SKILL Reference文件路径解析章节）并 Read，按其中指令执行
 > - **执行计划不含本步骤** → 直接结束流程（指令文件不加载，内容不进上下文）
 >
 > **依赖**：展示可配置步骤状态需读 `skipped-core-apply.json`（只读），详见指令文件。

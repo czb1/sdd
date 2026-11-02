@@ -1,6 +1,6 @@
 # Step 11: Gate-1 L4 实现追溯验证（多仓模式指令）
 
-> 本文件为可配置步骤 `l4_review` 的指令文件（多仓版）。仅在执行计划含 `key=l4_review` 条目时被 Read。
+> 本文件为可配置步骤 `l4_review` 的指令文件（多仓版）。仅在执行计划 `steps` 含 `config_key=l4_review`、`type=built_in`、`enabled=true` 的条目时，由骨架读取该条目的 `ref_file.single` / `ref_file.multi` 后执行。
 > 指令来源：`references/multi-repo.md` 的 **M-3**（多仓下 L4 验证的唯一执行权威，与 multi-repo.md 内容一致）。
 
 ## 多仓下的执行位置
