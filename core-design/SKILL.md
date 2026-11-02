@@ -1,6 +1,6 @@
 ---
 name: core-design
-description: Design document generation - reads delta_spec.md from explore phase from docs, fetch rule lists and request for relevant rules, generates design artifacts based on schema definitions with expert experience integration and configurable orchestration
+description: Design document generation - reads delta_spec.md from explore phase from docs, fetch rule lists and request for relevant rules, generates design artifacts based on schema definitions with expert experience integration
 license: MIT
 compatibility: Works without npm - uses Python scripts with schema-driven generation
 metadata:
@@ -18,7 +18,7 @@ Design document generation for a change.
 - Change name (kebab-case)
 - `docs/relationship.md` - 多仓库依赖关系，理解设计涉及的跨仓库调用链
 - Optional: `--step` for step mode, `--quick` for quick mode
-- Optional: `--query` as additional context for enabled extensions; it does not change the execution plan
+- Optional: `--query` for expert experience keywords
 
 ## Execution Method
 
@@ -91,106 +91,19 @@ sys.exit(result.returncode)
 
 **输出 JSON 内容判断**（非零 exit code 不意味着失败，必须以 JSON 内容为准）：
 
-- `"ok": false` → 配置校验/解析失败（`error` 或 `errors` 说明原因）→ **MUST STOP**，告知用户修正 `~/.corespec/flow-config.json` 后重试，禁止继续执行。
-- `"ok": true` → 执行计划已持久化到 `docs/.flow_context/execution-plan-core-design.json`，skipped 标记到 `docs/.flow_context/skipped-core-design.json`。按 `config_missing` 与 `scenario` 决定确认动作：
+- `"ok": false` → 配置文件校验失败：向用户原样展示 `error`/`errors`、指出配置文件路径（`~/.corespec/flow-config.json`），修复前 **MUST STOP**，禁止继续执行。
+- `"ok": true` → 执行计划已按配置构建并持久化到 `docs/.flow_context/execution-plan-core-design.json`，skipped 标记到 `docs/.flow_context/skipped-core-design.json`，**直接按计划执行，无需任何确认**：
+  - **`"config_initialized": true`**（首次自动生成配置文件）→ 在执行总结中添加一行提示（仅首次，`false` 时静默跳过）："已生成流程编排配置文件 `~/.corespec/flow-config.json`（如需启停步骤或添加自定义步骤，直接编辑该文件，下次运行自动生效；说明见 `~/.corespec/flow-config-guide.md`）。"
   - **`"template_initialized": true`**（首次自动初始化模板）→ 在执行总结中添加一行提示："已初始化可编辑的产物模板（如需自定义章节，编辑 `~/.corespec/` 下的模板文件，执行 `python -m core_templates --guide` 查看使用指南）。"——**仅首次出现时告知，`false` 时静默跳过**
 
-**首次运行（`config_missing: true`）——必须给用户配置机会**：
-
-配置文件 `~/.corespec/flow-config.json` 不存在时，这是用户**唯一一次**接触 flow-config 框架的机会。**不得静默跳过**——必须用 **AskUserQuestion** 向用户提供"生成模板 / 继续默认"选择：
-
-```
-AskUserQuestion({
-  questions: [{
-    question: "未检测到 flow-config 配置文件（~/.corespec/flow-config.json）。\n当前将以全默认计划执行（内置步骤按出厂默认启停：version_check/fetch_rules/read_similar/expert_experience/design_traceability/design_review/cleanup 开启，skill_consumption 默认关闭，无自定义步骤）。\n是否生成配置模板以便启停步骤或插入自定义步骤？\n<summary>",
-    header: "首次配置",
-    options: [
-      { label: "生成模板", description: "生成 ~/.corespec/flow-config.json 模板（含全部可配置项说明），用户修改后重建计划" },
-      { label: "继续默认", description: "直接使用全默认计划执行，本次不再配置" }
-    ]
-  }])
-```
-
-- 用户选择 **生成模板**：运行以下命令生成带注释的 JSONC 模板并同步配置指南到 `~/.corespec/flow-config-guide.md`：
-
-```bash
-python -c "
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path.home() / '.config' / 'opencode' / 'skills' / 'core-shared' / 'scripts'))
-from core_paths import get_opencode_config_dir
-config_dir = get_opencode_config_dir()
-import subprocess
-result = subprocess.run(
-    [sys.executable, config_dir / 'skills' / 'core-design' / 'scripts' / 'main.py', 'flow-config', '--init', '--skill', 'core-design'],
-    encoding='utf-8', capture_output=True, text=True)
-print(result.stdout)
-sys.exit(result.returncode)
-"
-```
-
-  告知用户修改 `~/.corespec/flow-config.json` 后**重新运行本构建命令**。用户选择"继续默认"或确认修改后 → 进入 Phase 1（版本检查）
-- 用户选择 **继续默认**：直接使用已持久化的全默认计划，进入 Phase 1（版本检查）
-
-**命名空间缺失（`config_missing: false` 且 `ns_missing: true`）——也必须给用户配置机会**：
-
-配置文件 `~/.corespec/flow-config.json` 已存在但**本 skill 的命名空间不存在**——必须用 **AskUserQuestion** 向用户提供"生成模板 / 继续默认"选择：
-
-```
-AskUserQuestion({
-  questions: [{
-    question: "flow-config 配置文件已存在，但未包含 core-design 命名空间（首次接触本 skill 的配置项）。\n当前将以全默认计划执行（内置步骤按出厂默认启停：version_check/fetch_rules/read_similar/expert_experience/design_traceability/design_review/cleanup 开启，skill_consumption 默认关闭，无自定义步骤）。\n是否生成配置模板以便启停步骤或插入自定义步骤？\n<summary>",
-    header: "首次配置",
-    options: [
-      { label: "生成模板", description: "生成 ~/.corespec/flow-config.json 的 core-design 分区模板（含全部可配置项说明），用户修改后重建计划" },
-      { label: "继续默认", description: "直接使用全默认计划执行，本次不再配置" }
-    ]
-  }])
-```
-
-- 用户选择 **生成模板**：运行上方 `--init` 命令（文件不存在时生成完整模板；已存在时从模板提取 core-design 示例块追加到顶层闭合前），告知用户确认后**重新运行本构建命令** → 进入 Phase 1（版本检查）
-- 用户选择 **继续默认**：直接使用已持久化的全默认计划，进入 Phase 1（版本检查）
-
-**非首次运行（`config_missing: false`）**，按 `scenario` 决定确认动作：
-
-| scenario | 含义 | 动作 |
-|----------|------|------|
-| `A` | 命名空间未配置/解析后全默认（配置文件存在） | 命名空间已配置且解析全默认 → **跳过确认**（零接触）；**命名空间缺失（`ns_missing: true`）→ 同首次运行，必须用 AskUserQuestion 提供"生成模板 / 继续默认"** |
-| `B` | 首次·非默认 | 用 **AskUserQuestion**（`multiSelect: true`）展示完整勾选列表（可关闭的内置步骤 + 自定义步骤） |
-| `C` | 续跑·一致（指纹匹配） | 轻量确认：展示计划摘要，用户确认/跳过 |
-| `D` | 计划缺失·命名空间存在 | 用 **AskUserQuestion** 确认：配置非默认 → `multiSelect: true` 完整勾选列表；配置全默认 → 轻量确认 |
-| `E` | 配置变更（指纹不匹配） | 用 **AskUserQuestion** 展示变更后计划，确认后继续 |
-
-**计划确认后必须创建 task 任务（MANDATORY）**：计划确认完成后，进入主流程前，必须使用 **TaskCreate 工具**创建 task 任务清单：
+**计划解析成功后必须创建 task 任务（MANDATORY）**：进入主流程前，必须使用 **TaskCreate 工具**创建 task 任务清单：
 - **先创建当前阶段即可确定的任务**：
   - 固定主流程步骤：构建执行计划 → Phase 1（版本检查，`version_check` 关闭时跳过）→ Phase 2（获取规范，`fetch_rules` 关闭时跳过 GATE 仍执行）→ Phase 3（收集上下文）→ Phase 4（代码理解）→ Phase 8（生成设计文档）各建一个 task
-  - 按执行计划 `steps` 数组，为每个启用的可配置内置步骤（`config_key` = `version_check`/`fetch_rules`/`read_similar`/`expert_experience`/`skill_consumption`/`design_traceability`/`design_review`/`cleanup`）创建 task；关闭的步骤不创建
+  - 按执行计划 `steps` 数组，为每个启用的可配置内置步骤（`config_key` = `version_check`/`fetch_rules`/`read_similar`/`expert_experience`/`design_traceability`/`design_review`/`cleanup`）创建 task；关闭的步骤不创建
   - 每个启用的编排点插槽条目（`orchestration_points` 中的 reference/skill 步骤）同样创建 task
-- **多仓检测后必须补充创建分支 task（MANDATORY）**：执行计划在构建时尚未运行多仓检测，单仓/多仓分支无法在确认时预知。Phase 3 多仓检测输出路由结果后，必须立即用 TaskCreate 补齐分支任务：单仓 → Phase 5（`read_similar` 关闭时跳过）→ Phase 6 → Phase 7（`expert_experience` 关闭时跳过）→ Phase 8 → Phase 9（`skill_consumption` 关闭时跳过）→ Phase 10（`design_traceability` 关闭时跳过）→ Phase 11（`design_review` 关闭时跳过）→ Phase 12（`cleanup` 关闭时跳过）各建一个 task；多仓 → 按 references/multi-repo.md 的 M-1/M-2/Phase 9/M-3a/M-3b/cleanup 各建一个 task（Phase 9 对应 `skill_consumption`，由主会话聚合执行；M-3a 对应 `design_traceability`、M-3b 对应 `design_review`、cleanup 对应 `cleanup`，关闭的 M 不创建；M-2 不可关，始终创建）
+- **多仓检测后必须补充创建分支 task（MANDATORY）**：执行计划在构建时尚未运行多仓检测，单仓/多仓分支无法在确认时预知。Phase 3 多仓检测输出路由结果后，必须立即用 TaskCreate 补齐分支任务：单仓 → Phase 5（`read_similar` 关闭时跳过）→ Phase 6 → Phase 7（`expert_experience` 关闭时跳过）→ Phase 8 → Phase 9（`design_traceability` 关闭时跳过）→ Phase 10（`design_review` 关闭时跳过）→ Phase 11（`cleanup` 关闭时跳过）各建一个 task；多仓 → 按 references/multi-repo.md 的 M-1/M-2/M-3a/M-3b/cleanup 各建一个 task（M-3a 对应 `design_traceability`、M-3b 对应 `design_review`、cleanup 对应 `cleanup`，关闭的 M 不创建；M-2 不可关，始终创建）
 - task 描述注明对应步骤/config_key/M 阶段与启停状态
-- 补建时复用已存在的同一步骤 task，只创建缺失项，禁止重复创建。
 - **禁止跳过 TaskCreate**（用户可直观看到哪些步骤要执行、哪些已关闭）
-
-**执行期规则**：
-
-下文“执行计划含条目”指存在启用条目：内置步骤须 `enabled=true`，自定义条目不得为 `enabled=false`。`steps` 是完整步骤视图，可能保留 `enabled=false` 的关闭项；不能仅凭键存在就执行。
-
-- 执行计划是唯一权威。内置步骤只从 `steps` 中查找 `type=built_in`、`enabled=true` 且 `config_key` 匹配的条目，读取其 `ref_file.single` / `ref_file.multi`；没有启用条目时跳过，不加载指令文件。
-- 自定义步骤只从 `orchestration_points` 对应插槽读取，按计划顺序（`order` 升序）串行执行。`type=reference` 时 Read 条目的 `file` 并执行；`type=skill` 时调用条目的 `skill`，`run_mode=subagent` 时启动独立子代理。显式 `enabled=false` 的条目跳过；插槽为空时不加载任何自定义指令。
-- 自定义步骤的声明由 `flow_config.py` 的 `TEMPLATE_JSONC` 承载；配置中整块注释表示关闭，取消整块注释表示开启，重建并确认执行计划后生效。骨架不指定自定义步骤名称或指令文件，不根据已有产物、输入参数或其他步骤推断启用。
-- 按下表在阶段边界调度插槽；多仓的 change 级插槽由主会话聚合执行一次，子代理不重复调度。某个内置步骤关闭只跳过该步骤，仍检查其后插槽，由计划中的依赖结果决定各自定义条目是否执行。
-- 计划不可读取或结构无效时停止并报告；已启用条目的指令文件缺失时停止并报告，不从配置源重建或静默跳过。
-
-| 插槽 | 单仓执行位置 | 多仓执行位置 |
-|------|--------------|--------------|
-| post-rule-fetch | Phase 2 完成后 | Phase 2 完成后 |
-| post-gather-context | Phase 3 完成后 | M-1 完成后 |
-| post-code-understanding | Phase 4 完成后 | Phase 4 完成后 |
-| pre-generate | Phase 8 开始前 | M-2 启动前 |
-| post-generate | Phase 8 全部产物生成后、Phase 9 前 | M-2 全部仓产物生成后、Phase 9 前 |
-| post-traceability | Phase 10 完成或跳过后 | M-3a 完成或跳过后 |
-| post-design-review | Phase 11 完成或跳过后 | M-3b 完成或跳过后 |
-| post-cleanup | Phase 12 完成或跳过后 | cleanup 完成或跳过后 |
 
 ## Artifact Scope
 
@@ -269,16 +182,16 @@ AskUserQuestion({
 
 ### Phase 6: 读取 brainstorming 生成的 design.md
 
-**动作**：读取 `docs/changes/<change-name>/.brainstorming_output` 元数据文件，解析 `design_doc_path` 字段获取 design.md 路径并读取内容，供 Phase 8 生成 delta_design.md 参考。元数据文件不存在说明 brainstorming 未执行，跳过本步骤。design.md 实际清理在 Phase 12 执行。
+**动作**：读取 `docs/changes/<change-name>/.brainstorming_output` 元数据文件，解析 `design_doc_path` 字段获取 design.md 路径并读取内容，供 Phase 8 生成 delta_design.md 参考。元数据文件不存在说明 brainstorming 未执行，跳过本步骤。design.md 实际清理在 Phase 11 执行。
 
 **确认延迟的实现层面问题**（仅多仓）：
 - **单仓** → 跳过（单仓无 impl_questions_for_design.json）
 - **多仓** → 按 references/multi-repo.md M-2 步骤3执行（读取 impl_questions_for_design.json，逐条让用户确认实现层面延迟问题的设计方向）
 
-### Phase 7: Prepare Existing Experience Context [可配置: expert_experience]
+### Phase 7: Fetch Expert Experience [可配置: expert_experience]
 
 > 本步骤为可配置步骤。执行与否以构建执行计划持久化的 execution-plan-core-design.json 为准：
-> - **执行计划 steps 数组含 `config_key=expert_experience`（type=built_in）条目** → 从该条目 `ref_file.single` 字段取指令文件（动态路径解析参见本SKILL Reference文件路径解析章节）并 Read，按其中指令执行（准备已有的项目级设计经验）
+> - **执行计划 steps 数组含 `config_key=expert_experience`（type=built_in）条目** → 从该条目 `ref_file.single` 字段取指令文件（动态路径解析参见本SKILL Reference文件路径解析章节）并 Read，按其中指令执行（调用 paradigm-exp-use 获取专家经验）
 > - **执行计划不含本步骤** → 直接进入 Phase 8（指令文件不加载，内容不进上下文）
 >
 > **执行位置**：Phase 6（读取 brainstorming design.md）之后、Phase 8（生成设计文档）之前执行。
@@ -306,31 +219,24 @@ AskUserQuestion({
 读取后输出: "GATE PASSED: references/multi-repo.md loaded"。
 <!-- /GATE:REF -->
 
-**多仓模式**：本 Phase 的单仓文档生成由 M-2 替代；Phase 9~12 按执行计划继续执行。
+**多仓模式**：本 Phase 的单仓文档生成由 M-2 替代；Phase 9~11 仍正常执行。
 
-### Phase 9: 任务 Skill 关联 [可配置: skill_consumption]
-
-> 本步骤为默认关闭的内置可启停步骤。
-> - **执行计划 `steps` 含 `config_key=skill_consumption`、`type=built_in`、`enabled=true` 的条目** → 从条目 `ref_file.single` / `ref_file.multi` 取指令文件并 Read，按其中指令执行。
-> - **没有启用条目** → 跳过，不加载指令文件，继续 Phase 10。
-> - 单仓在 Phase 8 和其后的通用插槽执行完毕后执行；多仓在 M-2 全部仓完成及通用插槽执行完毕后，由主会话聚合执行一次。
-
-### Phase 10: 设计追溯验证（强制）[可配置: design_traceability]
+### Phase 9: 设计追溯验证（强制）[可配置: design_traceability]
 
 > 本步骤为可配置步骤。执行与否以构建执行计划持久化的 execution-plan-core-design.json 为准：
 > - **执行计划 steps 数组含 `config_key=design_traceability`（type=built_in）条目** → 本步骤强制不可跳过，按以下模式执行（单仓读取 `ref_file.single` 指令文件 / 多仓读取 `ref_file.multi` 指令文件并执行 M-3a）
-> - **执行计划不含本步骤** → 本步骤整体跳过，**Phase 10→11 衔接豁免**（不检查"已通过 Agent tool 启动子代理"），直接进入 Phase 11
+> - **执行计划不含本步骤** → 本步骤整体跳过，**Phase 9→10 衔接豁免**（不检查"已通过 Agent tool 启动子代理"），直接进入 Phase 10
 > - 多仓模式：`design_traceability` 关闭 → M-3a 整体跳过，M-3a 的必经关卡/禁止主会话/ERROR 禁止推迟强制位同步豁免（见 references/multi-repo.md）
 
-### Phase 11: design-doc-reviewer 审查 [可配置: design_review]
+### Phase 10: design-doc-reviewer 审查 [可配置: design_review]
 
 > 本步骤为可配置步骤。执行与否以构建执行计划持久化的 execution-plan-core-design.json 为准：
 > - **执行计划 steps 数组含 `config_key=design_review`（type=built_in）条目** → 本步骤强制不可跳过，按以下模式执行（单仓读取 `ref_file.single` 指令文件 / 多仓读取 `ref_file.multi` 指令文件并执行 M-3b）
-> - **执行计划不含本步骤** → 本步骤整体跳过，**Phase 11→12 衔接豁免**（不检查"已通过 Agent tool 启动子代理"），直接进入 Phase 12
+> - **执行计划不含本步骤** → 本步骤整体跳过，**Phase 10→11 衔接豁免**（不检查"已通过 Agent tool 启动子代理"），直接进入 Phase 11
 > - 多仓模式：`design_review` 关闭 → M-3b 整体跳过，M-3b 的必经关卡/禁止主会话/ERROR 禁止推迟强制位同步豁免（见 references/multi-repo.md）
-> - **`design_traceability` 关闭但 `design_review` 开启时**：Phase 9 完成或跳过后进入 M-3b，"M-3a 全过后才执行 M-3b"依赖随 `design_traceability` 关闭豁免
+> - **`design_traceability` 关闭但 `design_review` 开启时**：M-2 完成后直接进入 M-3b，"M-3a 全过后才执行 M-3b"依赖随 `design_traceability` 关闭豁免
 
-### Phase 12: 清理临时文件 [可配置: cleanup]
+### Phase 11: 清理临时文件 [可配置: cleanup]
 
 > 本步骤为可配置步骤。执行与否以构建执行计划持久化的 execution-plan-core-design.json 为准：
 > - **执行计划 steps 数组含 `config_key=cleanup`（type=built_in）条目** → 本步骤强制不可跳过（core-design 流程最后一步），按以下模式执行（单仓读取 `ref_file.single` 指令文件 / 多仓读取 `ref_file.multi` 指令文件并执行多仓清理）
@@ -371,7 +277,7 @@ The design-phase artifacts are defined in `core-schemas/spec-driven/schema.yaml`
 **Change:** <change-name>
 **Schema:** spec-driven
 **Artifacts (Design Phase only):**
-  ✓ delta_design.md (已填充 - 包含 `language-specific design specifications` 约束；经验按实际可用情况使用)
+  ✓ delta_design.md (已填充 - 包含 `language-specific design specifications` 约束 + 专家经验)
   ✓ delta_test_design.md (已填充)
   ✓ tasks.md (已填充，checkbox格式 verified)
 
@@ -384,16 +290,20 @@ The design-phase artifacts are defined in `core-schemas/spec-driven/schema.yaml`
 - Phase 4 (Code Understanding): ✓
 - Phase 5 (Similar Changes): ✓ (if references exist)
 - Phase 6 (Brainstorming Output): ✓ (if exists)
-- Phase 7 (Existing Experience Context): <已准备 / 无可复用经验 / 已关闭>
+- Phase 7 (Expert Experience): ✓ (已注入到 delta_design.md)
 - Phase 8 (Generate Artifacts): ✓ (已执行内容填充，已对照 design-principles.md + design-views.md)
-- Phase 9 (任务 Skill 关联): 按 skill_consumption 启停状态报告
-- Phase 10 (设计追溯验证): <通过 / 已关闭 / 失败> (cross-doc-checker L2/L3，按实际结果)
-- Phase 11 (design-doc-reviewer 审查): <通过 / 已关闭 / 失败>（按实际结果）
+- Phase 9 (设计追溯验证): ✓ (cross-doc-checker L2/L3)
+- Phase 10 (design-doc-reviewer 审查): ✓
 
 ### `language-specific design specifications` Rule Integration
 - Rule content fetched in Step 3: ✓
 - Skill instructions extracted: ✓
 - Injected into delta_design.md: ✓
+
+### Expert Experience Integration
+- Query derived from requirements: ✓
+- Expert knowledge fetched: ✓
+- Injected into delta_design.md design decisions: ✓
 
 ### Content Filling Status
 - delta_spec.md content referenced: ✓
@@ -408,9 +318,9 @@ Ready for implementation. Run /core-apply <change-name>
 - **Design phase only**: core-design does NOT generate proposal.md or delta_spec.md
 - **Schema-driven**: All artifact filenames and formats are defined in schema.yaml
 - **`language-specific design specifications` integration**: Automatically reads and injects these constraints fetched in step 3.
+- **Expert Experience**: Invokes paradigm-exp-use to get relevant knowledge
 - **Similar Changes**: Reads referenced similar changes for design patterns
 - **tasks.md NOT task.md**: The schema defines artifact ID `tasks` which generates `tasks.md` (plural)
 - **Checkbox format**: The schema requires checkbox format (`- [ ]`) for tasks
 - **Verification required**: Always verify generated artifacts match schema expectations
 - **Design anchors**: Use `anchor_extractor.py` to automatically extract design anchors for tasks from delta_design.md metadata
-
