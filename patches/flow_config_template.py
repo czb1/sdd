@@ -1,12 +1,12 @@
-# TEMPLATE_JSONC replacement only; also apply the built-in registry and fixed-step changes.
-# Do not replace the complete flow_config.py module with this file.
+# Template mirror only; the complete runtime is core-shared/scripts/flow_config.py.
 
 TEMPLATE_JSONC = """// ============================================================
 // CoreSpec 通用流程编排框架 - 全局配置（JSONC：支持 // 行注释）
 // 位置：~/.corespec/flow-config.json
 // 说明：顶层按 skill 名分组。每个 core-* skill 只解析自己的命名空间。
 //       某 skill 对象不存在 = 该 skill 全默认（内置步骤按各自默认值启停，无自定义步骤）。
-//       修改后调用 main.py flow-config --json --skill <name> 重建执行计划。
+//       首次运行已自动生成本文件，无需修改 = 全默认；
+//       修改后下次运行 core-* 自动生效（无需任何命令或确认）。
 // 完整指南：~/.corespec/flow-config-guide.md（或 main.py flow-config --guide）
 // ============================================================
 

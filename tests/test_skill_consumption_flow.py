@@ -1,7 +1,10 @@
-"""Exercise builtin consumption against a supplied complete flow_config.py."""
+"""Verify Skill consumption with the config-driven flow-config runtime."""
 
 import argparse
+import contextlib
 import importlib.util
+import io
+import json
 from pathlib import Path
 import sys
 import tempfile
@@ -29,9 +32,33 @@ class SkillConsumptionFlowTests(unittest.TestCase):
         directory = tempfile.TemporaryDirectory()
         self.addCleanup(directory.cleanup)
         self.config = Path(directory.name) / "flow-config.json"
+        self.project = Path(directory.name) / "project"
         path_patch = patch.object(flow, "get_config_path", return_value=self.config)
         path_patch.start()
         self.addCleanup(path_patch.stop)
+        guide_patch = patch.object(flow, "get_guide_path", return_value=Path(directory.name) / "guide.md")
+        guide_patch.start()
+        self.addCleanup(guide_patch.stop)
+        # The full framework's template package is optional in this repository.
+        template_patch = patch.dict(sys.modules, {"core_templates": None})
+        template_patch.start()
+        self.addCleanup(template_patch.stop)
+
+    def command(self, *args):
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output):
+            code = flow.cmd_flow_config(["--json", "--project-root", str(self.project), *args])
+        self.assertEqual(code, 0)
+        return json.loads(output.getvalue())
+
+    def rebuild(self, skill):
+        result = self.command("--skill", skill)
+        self.assertTrue(result["ok"], result)
+        for removed in ("scenario", "confirm_required", "config_missing", "ns_missing"):
+            self.assertNotIn(removed, result)
+        self.assertEqual(json.loads(Path(result["plan_path"]).read_text()), result["plan"])
+        self.assertEqual(json.loads(Path(result["skipped_path"]).read_text()), result["plan"]["disabled"])
+        return result
 
     def initialize(self):
         blocks = []
@@ -93,21 +120,78 @@ class SkillConsumptionFlowTests(unittest.TestCase):
                             self.assertNotIn("ref_file", entry)
                             self.assertIn("skill_consumption", plan["disabled"])
 
-    def test_boolean_roundtrip_preserves_other_config_and_fingerprint(self):
+    def test_config_edits_rebuild_plan_without_confirmation_or_writeback(self):
         self.initialize()
         original = self.read_config()
         for skill in ("core-design", "core-apply"):
             before = flow.canonical_fingerprint(original[skill])
             for enabled in (True, False, True, False):
-                ok, error = flow.update_config_value(skill, "skill_consumption", enabled)
-                self.assertTrue(ok, error)
                 config = self.read_config()
-                self.assertIs(self.entry(self.plan(skill, config[skill]))["enabled"], enabled)
-                self.assertEqual(flow.canonical_fingerprint(config[skill]) == before, not enabled)
-                for name, value in original[skill].items():
-                    if name != "skill_consumption":
-                        self.assertEqual(config[skill][name], value)
+                config[skill]["skill_consumption"] = enabled
+                self.config.write_text("// User-edited config\n" + json.dumps(config, ensure_ascii=False), encoding="utf-8")
+                source = self.config.read_bytes()
+                result = self.rebuild(skill)
+                self.assertFalse(result["config_initialized"])
+                self.assertIs(self.entry(result["plan"])["enabled"], enabled)
+                self.assertEqual(result["plan"]["_fingerprint"] == before, not enabled)
+                self.assertEqual(self.config.read_bytes(), source)
+                for namespace, values in original.items():
+                    for name, value in values.items():
+                        if (namespace, name) != (skill, "skill_consumption"):
+                            self.assertEqual(config[namespace][name], value)
         self.assertEqual(self.read_config(), original)
+
+    def test_first_run_initializes_config_and_missing_namespace_silently(self):
+        first = self.rebuild("core-apply")
+        self.assertTrue(first["config_initialized"])
+        self.assertFalse(self.entry(first["plan"])["enabled"])
+        self.assertTrue(flow.get_guide_path().is_file())
+        self.assertFalse(self.rebuild("core-apply")["config_initialized"])
+        original = self.read_config()
+        added = self.rebuild("core-design")
+        self.assertTrue(added["config_initialized"])
+        self.assertFalse(self.entry(added["plan"])["enabled"])
+        self.assertIs(self.read_config()["core-design"]["skill_consumption"], False)
+        for key, value in original.items():
+            self.assertEqual(self.read_config()[key], value)
+        self.assertFalse(self.rebuild("core-design")["config_initialized"])
+
+    def test_invalid_config_preserves_last_plan_and_skipped_markers(self):
+        self.initialize()
+        results = {skill: self.rebuild(skill) for skill in ("core-design", "core-apply")}
+        saved = {Path(result[key]): Path(result[key]).read_bytes()
+                 for result in results.values() for key in ("plan_path", "skipped_path")}
+        for content in ("{broken", json.dumps({skill: {"skill_consumption": {"type": "reference"}}
+                                               for skill in results})):
+            self.config.write_text(content, encoding="utf-8")
+            for skill in results:
+                self.assertFalse(self.command("--skill", skill)["ok"])
+            for path, expected in saved.items():
+                self.assertEqual(path.read_bytes(), expected)
+
+    def test_multi_repo_fragment_keeps_root_builtin_gate_and_custom_slots(self):
+        for enabled in (True, False):
+            namespace = {"skill_consumption": enabled, "judgment_ladder": {
+                "type": "reference", "file": "references/judgment-ladder.md", "at": "pre-codegen"}}
+            self.config.write_text(json.dumps({"core-apply": namespace}), encoding="utf-8")
+            result = self.rebuild("core-apply")
+            repo_cwd = self.project / "service-a"
+            fragment = self.command("--skill", "core-apply", "--fragment", "--repo", "service-a", "--repo-cwd", str(repo_cwd))
+            self.assertEqual(fragment["repo_cwd"], str(repo_cwd))
+            self.assertEqual(fragment["plan_path"], result["plan_path"])
+            self.assertNotIn("steps", fragment)
+            self.assertEqual(fragment["orchestration_points"], result["plan"]["orchestration_points"])
+            root_plan = json.loads(Path(fragment["plan_path"]).read_text())
+            self.assertIs(self.entry(root_plan)["enabled"], enabled)
+            saved = self.project / "docs/.flow_context/execution-plan-fragment-core-apply-service-a.json"
+            self.assertEqual(json.loads(saved.read_text()), fragment)
+
+    def test_cli_describe_reports_both_default_disabled_switches(self):
+        for skill in ("core-design", "core-apply"):
+            schema = self.command("--skill", skill, "--describe")
+            entry = next(b for b in schema["built_in_steps"] if b["key"] == "skill_consumption")
+            self.assertIs(entry["default"], False)
+            self.assertEqual(entry["depends_on"], [])
 
     def test_legacy_custom_objects_and_non_booleans_are_rejected(self):
         for skill, slot in (("core-design", "post-generate"), ("core-apply", "pre-codegen")):

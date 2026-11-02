@@ -84,155 +84,20 @@ sys.exit(result.returncode)
 **输出 JSON 内容判断**（非零 exit code 不意味着失败，必须以 JSON 内容为准）：
 
 - `"ok": false` → 配置校验/解析失败（`error` 或 `errors` 说明原因）→ **MUST STOP**，告知用户修正 `~/.corespec/flow-config.json` 后重试，禁止继续执行。`error` 含"解析失败"时是配置源损坏（如旧版写回遗留尾逗号）——框架已尝试自愈，若仍失败说明文件严重损坏，需用户手工修复（`flow-config.json.bak-*` 备份可回退）
-- `"ok": true` → 执行计划已持久化到 `docs/.flow_context/execution-plan-core-apply.json`，skipped 标记到 `docs/.flow_context/skipped-core-apply.json`。按 `config_missing` 与 `scenario` 决定确认动作：
+- `"ok": true` → 执行计划已按配置构建并持久化到 `docs/.flow_context/execution-plan-core-apply.json`，skipped 标记到 `docs/.flow_context/skipped-core-apply.json`，**直接按计划执行，无需流程配置确认**：
+  - **`"config_initialized": true`**（首次自动生成配置文件）→ 在执行总结中添加一行提示（仅首次，`false` 时静默跳过）："已生成流程编排配置文件 `~/.corespec/flow-config.json`（如需启停步骤或添加自定义步骤，直接编辑该文件，下次运行自动生效；说明见 `~/.corespec/flow-config-guide.md`）。"
   - **`"template_initialized": true`**（首次自动初始化模板）→ 在执行总结中添加一行提示："已初始化可编辑的产物模板（如需自定义章节，编辑 `~/.corespec/` 下的模板文件，执行 `python -m core_templates --guide` 查看使用指南）。"——**仅首次出现时告知，`false` 时静默跳过**
+- 用户想调整步骤（启停内置步骤 / 添加自定义步骤）→ 直接编辑 `~/.corespec/flow-config.json`，下次运行自动生效（无需任何命令或确认）
 
-**首次运行（`config_missing: true`）——必须给用户配置机会**：
+流程配置无需交互确认；启用任务 Skill 消费后，候选选择、安装与冲突处理等业务确认仍按消费指令执行。
 
-配置文件 `~/.corespec/flow-config.json` 不存在时，这是用户**唯一一次**接触 flow-config 框架的机会（后续修改需手动编辑配置文件，且仅在场景 E 触发重建）。**不得静默跳过**——必须用 **AskUserQuestion** 向用户提供"生成模板 / 继续默认"选择：
-
-```
-AskUserQuestion({
-  questions: [{
-    question: "未检测到 flow-config 配置文件（~/.corespec/flow-config.json）。\n当前将以全默认计划执行（内置步骤按出厂默认启停：version_check/l4_review/code_review/unit_test/l5_coverage/completion_report 开启，show_progress/skill_consumption 关闭，无自定义步骤）。\n是否生成配置模板以便启停步骤或插入自定义步骤？\n<summary>",
-    header: "首次配置",
-    options: [
-      { label: "生成模板", description: "生成 ~/.corespec/flow-config.json 模板（含全部可配置项说明），用户修改后重建计划" },
-      { label: "继续默认", description: "直接使用全默认计划执行，本次不再配置" }
-    ]
-  }])
-```
-
-- 用户选择 **生成模板**：运行以下命令生成带注释的 JSONC 模板（含全部可配置键说明）并同步配置指南到 `~/.corespec/flow-config-guide.md`：
-
-```bash
-python -c "
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path.home() / '.config' / 'opencode' / 'skills' / 'core-shared' / 'scripts'))
-from core_paths import get_opencode_config_dir
-config_dir = get_opencode_config_dir()
-import subprocess
-result = subprocess.run(
-    [sys.executable, config_dir / 'skills' / 'core-apply' / 'scripts' / 'main.py', 'flow-config', '--init', '--skill', 'core-apply'],
-    encoding='utf-8', capture_output=True, text=True)
-print(result.stdout)
-sys.exit(result.returncode)
-"
-```
-
-  告知用户修改 `~/.corespec/flow-config.json` 后**重新运行本 Step 0 命令**（此时 `config_missing` 变为 false，按 `scenario` 正常流程确认）。用户选择"继续默认"或确认修改后 → 进入 Step 1
-- 用户选择 **继续默认**：直接使用已持久化的全默认计划，进入 Step 1
-
-**命名空间缺失（`config_missing: false` 且 `ns_missing: true`）——也必须给用户配置机会**：
-
-配置文件 `~/.corespec/flow-config.json` 已存在（可能是其他 skill 首次运行 `--init` 生成的），但**本 skill（core-apply）的命名空间不存在**——你从未见过 core-apply 的可配置项。这与首次运行（`config_missing: true`）同权：**不得静默跳过**（场景 A 的零接触仅适用于命名空间已配置且解析为全默认的情况）——必须用 **AskUserQuestion** 向用户提供"生成模板 / 继续默认"选择（结构与上方"首次运行"分支相同，question 文案改为"flow-config 配置文件已存在，但未包含 core-apply 命名空间"）。用户选择 **生成模板** 时运行 `flow-config --init --skill core-apply`（从模板提取 core-apply 示例块追加到已存在文件，已存在的分区/键不被覆盖；若 core-apply 分区已存在则幂等不重复追加）；选择 **继续默认** 则直接使用已持久化的全默认计划。
-
-**非首次运行（`config_missing: false`）**，按 `scenario` 决定确认动作：
-
-| scenario | 含义 | 动作 |
-|----------|------|------|
-| `A` | 命名空间未配置/解析后全默认（配置文件存在） | 命名空间已配置且解析全默认 → **跳过确认**（零接触）；**命名空间缺失（`ns_missing: true`）→ 同首次运行，必须用 AskUserQuestion 提供"生成模板 / 继续默认"**（见上"命名空间缺失"分支） |
-| `B` | 首次·非默认 | 用 **AskUserQuestion**（`multiSelect: true`）展示完整勾选列表（可关闭的内置步骤 + 自定义步骤） |
-| `C` | 续跑·一致（指纹匹配） | 轻量确认：展示计划摘要，用户确认/跳过 |
-| `D` | 计划缺失·命名空间存在 | 用 **AskUserQuestion** 确认：配置非默认 → `multiSelect: true` 完整勾选列表；配置全默认 → 轻量确认（等价旧"首次·非默认"） |
-| `E` | 配置变更（指纹不匹配） | 用 **AskUserQuestion** 展示变更后计划，确认后继续 |
-
-**任何多选提问（场景 B/D 的完整勾选、Adjust 的调整项）的空应答处理**：用户提交但未选中任何选项时，**禁止静默按"不调整/保持默认"继续**——先确认"未选中任何选项"事实，再按"不调整"处理并明确声明；若 UI 异常无法确认，重新发起一次相同多选提问。
-
-**多选提问的操作键提示（场景 B/D 完整勾选、Adjust 调整项均适用）**：所有 `multiSelect: true` 提问的 question 文本**必须内嵌操作键说明**——`↑↓ 移动高亮 / 空格（Space）勾选或取消 / 回车（Enter）提交`。多选 checkbox 与单选交互不同（单选是方向键高亮 + 回车即选中；多选必须空格勾选、回车才提交），用户按单选直觉操作会提交空选择（2026-09-20 三次真实失败均因此返回空应答）。操作键说明是 question 文本的固定组成部分，**禁止删除、禁止只写在对话文本里**（对话文本会被 agent 省略，用户看不到）。
-
-**AskUserQuestion 结构化参数（Do NOT modify）**：
-
-```
-AskUserQuestion({
-  questions: [{
-    question: "执行计划已构建（scenario: <scenario>）。\n<summary>。\n请选择操作：",
-    header: "执行计划",
-    options: [
-      { label: "Confirm", description: "确认当前执行计划，按计划执行" },
-      { label: "Adjust", description: "调整计划（告知要启停的步骤或插入的自定义步骤）" }
-    ]
-  }])
-```
-
-`<summary>` 取 run_build 输出的 `summary` 字段（分节清爽文本：【主流程步骤】全 16 步按执行顺序带启停状态 /【编排点子环节】仅非空插槽 /【已关闭】关闭原因）。禁止自行拼接步骤清单。
-
-**用户选择 `Adjust` 时，必须用 AskUserQuestion 的多选（multiSelect）结构化选项让用户勾选，禁止用自由文本提问**。选项与 `run_build` 输出的计划状态同步生成（当前关闭的步骤 → 启用选项；当前启用的内置步骤 → 关闭选项；当前启用的编排点条目（自定义步骤）→ 关闭选项；`commented_custom_steps` 中被注释的自定义步骤 → 启用选项），并固定包含一个"不调整"选项。**Do NOT modify 结构**（`<操作键说明>` 固定为"↑↓ 移动高亮，空格（Space）勾选/取消，回车（Enter）提交"）：
-
-```
-AskUserQuestion({
-  questions: [{
-    question: "请选择要调整的步骤（可多选；↑↓ 移动高亮，空格（Space）勾选/取消，回车（Enter）提交；不选任何项直接提交 = 不调整，继续执行）：\n<当前状态摘要，取自 run_build 输出 summary 的【已关闭】与【编排点子环节】>",
-    header: "调整计划",
-    multiSelect: true,
-    options: [
-      { label: "启用版本检查", description: "启用 Step 1 版本检查（version_check=true）" },
-      { label: "启用进度展示", description: "启用 Step 8 展示当前进度（show_progress=true，默认关闭）" },
-      { label: "启用任务 Skill 消费", description: "启用 Step 9 与每任务消费（skill_consumption=true，默认关闭；已启用时改为关闭选项）" },
-      { label: "启用 L4", description: "启用 Step 11 Gate-1 L4 实现追溯验证（l4_review=true）" },
-      { label: "启用 Code Review", description: "启用 Step 12 Code Review（code_review=true）" },
-      { label: "启用单元测试", description: "启用 Step 13 单元测试（unit_test=true，自动恢复 L5）" },
-      { label: "启用 L5", description: "启用 Step 14 Gate-2 L5 UT 覆盖度验证（l5_coverage=true，依赖 UT 开启）" },
-      { label: "启用完成展示", description: "启用 Step 15 完成或暂停时展示状态（completion_report=true）" },
-      // ↑ 当前关闭的内置步骤生成"启用"选项；当前启用的内置步骤生成"关闭 <步骤>"选项（如 { label: "关闭 L4", description: "关闭 Step 11 L4（l4_review=false）" }）
-      // ↑ 当前启用的编排点条目（run_build 输出 `active_orchestration_entries`，即执行计划 orchestration_points 各区非空条目）生成"关闭 <key>"选项（如 { label: "关闭 compile", description: "关闭编排点 compile（post-codegen，compile=）" }）
-      // ↑ 配置中的自定义步骤生成"删除 <key>"选项（如 { label: "删除 judgment_ladder", description: "删除自定义步骤 judgment_ladder（judgment_ladder=）" }）；run_build 输出 `commented_custom_steps` 中被注释的自定义步骤生成"启用 <key>"选项（如 { label: "启用 judgment_ladder", description: "恢复被注释的自定义步骤 judgment_ladder（judgment_ladder=true）" }）
-      { label: "不调整", description: "保持当前计划不变，继续执行" }
-    ]
-  }])
-})
-```
-
-**空应答处理（重要）**：若用户提交时返回空（未选中任何选项），**禁止静默按"不调整/保持默认"继续**——这会把用户的勾选意图当作取消。必须先确认"未选中任何选项"这一事实，再按"不调整"处理，并在输出中明确声明："未选中任何调整项 → 按当前计划继续（如需调整请重新发起）"。若 agent 因 UI 异常无法确认选择内容，重新发起一次相同的多选提问，不得自行解读。
-
-用户按勾选结果应用调整：记录调整内容，执行以下命令应用调整并重同步 skipped 标记（`<changes>` 为 `key=false` / `key=true` / `key`（取消）列表；**多变更用多个独立 `--changes` 参数**（如 `'--changes', 'code_review=false', 'unit_test=false'`）或**单参数逗号拼接**（如 `'--changes', 'code_review=false,unit_test=false'`）——两种写法都兼容（`--apply` 内部按逗号拆分 + 追加归一化，2026-09-21 修复：argparse 重复参数折叠 bug 已改为 `action='append'`）；**关闭自定义步骤用 `key=`（注释软删除，声明保留在配置源可恢复）**；**启用被注释的自定义步骤用 `key=true`（取消注释恢复）**；**启停幂等**：重复勾选已处于目标状态的步骤（如再次"关闭"已关闭步骤、"启用"已启用步骤）视为成功，不中断 apply；自定义步骤的任意值更新不支持）：
-
-```bash
-python -c "
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path.home() / '.config' / 'opencode' / 'skills' / 'core-shared' / 'scripts'))
-from core_paths import get_opencode_config_dir
-config_dir = get_opencode_config_dir()
-import subprocess
-result = subprocess.run(
-    [sys.executable, config_dir / 'skills' / 'core-apply' / 'scripts' / 'main.py', 'flow-config', '--apply', '--json', '--skill', 'core-apply', '--changes', '<key>=<value>', '--project-root', '<project_root>'],
-    encoding='utf-8', capture_output=True, text=True)
-print(result.stdout)
-sys.exit(result.returncode)
-"
-```
-
-**多变更写法（每个变更一个独立 `--changes` 参数，禁止逗号拼接成单参数）**：
-
-```bash
-python -c "
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path.home() / '.config' / 'opencode' / 'skills' / 'core-shared' / 'scripts'))
-from core_paths import get_opencode_config_dir
-config_dir = get_opencode_config_dir()
-import subprocess
-result = subprocess.run(
-    [sys.executable, config_dir / 'skills' / 'core-apply' / 'scripts' / 'main.py', 'flow-config', '--apply', '--json', '--skill', 'core-apply', '--changes', 'code_review=false', '--changes', 'unit_test=false', '--changes', 'judgment_ladder=', '--project-root', '<project_root>'],
-    encoding='utf-8', capture_output=True, text=True)
-print(result.stdout)
-sys.exit(result.returncode)
-"
-```
-
-应用结果同样按 JSON 内容判断：`"ok": false` → 调整失败（`errors` 说明原因）；`"ok": true` → 调整已应用，`skipped_path` 为重同步后的关闭标记（后续执行期以调整后的执行计划为准）。
-
-**调整持久化语义（重要）**：`--apply` 的调整会**同步写回配置源** `~/.corespec/flow-config.json`（内置步骤开关 / 自定义步骤启停），因此 **Step 0 重建计划时调整依然生效**，不会被配置源覆盖。**自定义步骤的"关闭"是注释软删除**（声明整块注释保留在配置源，随时可恢复）；"启用"是取消注释恢复声明。若调整后再次运行 Step 0，scenario 变为 `E`（配置变更，指纹变化）——这是预期行为，需按场景表再次确认。
-
-**计划确认后必须创建 task 任务（MANDATORY）**：计划确认完成（Confirm 或 Adjust 应用完成）后，进入主流程前，必须使用 **TaskCreate 工具**创建 task 任务清单：
+**计划解析成功后必须创建 task 任务（MANDATORY）**：进入主流程前，必须使用 **TaskCreate 工具**创建 task 任务清单：
 - **先创建当前阶段即可确定的任务**：
   - 固定主流程步骤：Step 0（构建执行计划）→ Step 1（版本检查）→ Step 2（选择 change）→ Step 3（多仓检测与路由）→ Step 15（完成展示）各建一个 task
   - 单仓模式：按执行计划 `steps` 数组，为每个启用的可配置内置步骤（`config_key` = `version_check`/`show_progress`/`skill_consumption`/`l4_review`/`code_review`/`unit_test`/`l5_coverage`/`completion_report`）创建 task；关闭的步骤不创建
   - 多仓模式：为启用的 Step 9 准备步骤创建 task，再按执行计划对应 M 阶段（M-3 l4_review / M-4 code_review / M-5 unit_test / M-6 l5_coverage）创建 task；关闭的 M 不创建
   - 每个启用的编排点插槽条目（`orchestration_points` 中的 reference/skill 步骤）同样创建 task
-- **Step 3 路由判定后必须补充创建分支 task（MANDATORY）**：执行计划在 Step 0 构建时尚未运行 Step 3 多仓检测，单仓/多仓分支无法在确认时预知，因此 **Step 3 输出路由结果后、进入主流程主体前，必须立即用 TaskCreate 补齐分支任务**：单仓 → Step 4（检查 change 状态）→ Step 5（获取执行指令）→ Step 6（读取上下文文件）→ Step 7（加载代码生成原则）→ Step 8（展示进度）→ Step 9（任务 Skill 准备，执行计划含启用条目才创建）→ Step 10（代码生成任务）各建一个 task；多仓 → 按 references/multi-repo.md 的 M-1~M-6 各建一个 task，并为启用的 Step 9 主会话准备补建 task（M 阶段与执行计划启停对应：关闭的 M 不创建）。**禁止跳过 Step 3 后的分支补建**——否则任务清单缺失主体执行环节，用户看不到后续要执行什么
+- **Step 3 路由判定后必须补充创建分支 task（MANDATORY）**：执行计划在 Step 0 构建时尚未运行 Step 3 多仓检测，单仓/多仓分支无法在计划构建时预知，因此 **Step 3 输出路由结果后、进入主流程主体前，必须立即用 TaskCreate 补齐分支任务**：单仓 → Step 4（检查 change 状态）→ Step 5（获取执行指令）→ Step 6（读取上下文文件）→ Step 7（加载代码生成原则）→ Step 8（展示进度）→ Step 9（任务 Skill 准备，执行计划含启用条目才创建）→ Step 10（代码生成任务）各建一个 task；多仓 → 按 references/multi-repo.md 的 M-1~M-6 各建一个 task，并为启用的 Step 9 主会话准备补建 task（M 阶段与执行计划启停对应：关闭的 M 不创建）。**禁止跳过 Step 3 后的分支补建**——否则任务清单缺失主体执行环节，用户看不到后续要执行什么
 - task 描述注明对应步骤/config_key/M 阶段与启停状态；Step 10 任务循环与后续可配置步骤执行时，以这些 task 跟踪进度
 - 补建时复用已存在的同一步骤 task，只创建缺失项，禁止重复创建。
 - **禁止跳过 TaskCreate**（用户可直观看到哪些步骤要执行、哪些已关闭）
@@ -245,7 +110,7 @@ sys.exit(result.returncode)
 - 计划 `orchestration_points` 含 `post-codegen`/`post-l4`/`post-review`/`post-ut` 插槽条目 → 对应 change 级编排点执行；不含 → 跳过
 - 计划 `steps` 数组含 `config_key=version_check`/`show_progress`/`skill_consumption`/`l4_review`/`code_review`/`unit_test`/`l5_coverage`/`completion_report`（`type=built_in`，`enabled=true`）条目 → 执行对应 Step 的指令文件（`ref_file.single` 单仓 / `ref_file.multi` 多仓）；不含 → 该步骤跳过，**不 Read 指令文件**
 - 自定义步骤只由 `orchestration_points` 调度，按计划顺序（`order` 升序）串行执行：`reference` 从条目的 `file` 读取指令，`skill` 调用条目的 `skill`（`run_mode=subagent` 时启动独立子代理）。显式 `enabled=false` 的条目跳过；骨架不指定自定义步骤名称或指令文件。
-- 自定义声明由 `flow_config.py` 的 `TEMPLATE_JSONC` 承载。配置中整块注释表示关闭，取消整块注释表示开启，重建并确认执行计划后生效；已有产物或其他条目不能隐式开启步骤。
+- 自定义声明由 `flow_config.py` 的 `TEMPLATE_JSONC` 承载。配置中整块注释表示关闭，取消整块注释表示开启，下次运行自动重建执行计划后生效；已有产物或其他条目不能隐式开启步骤。
 - 有待办 1.x 任务且 `skill_consumption` 内置步骤启用时，主会话在单仓 Step 9 / 多仓 M-2 代码生成代理启动前，读取其 `ref_file.single` / `ref_file.multi`，完成一次准备；任务级动作在 10.3.4 执行。子代理从根计划读取同一内置条目的启用状态并加载指令，准备结果随任务上下文传入，新增用户决策事项返回主会话汇总。
 - 内置步骤关闭不等于关闭其后插槽，仍按计划调度有效条目；计划 / 片段无效或已启用条目的指令文件缺失时停止并报告，不自行重建、猜测启用或静默跳过。
 - `skipped-core-apply.json` 只读：Step 15 完成展示与下游 core-* 读取，agent 全程不写
@@ -306,7 +171,7 @@ Always announce: "Using change: <name>" and how to override (e.g., `/core-apply 
    3. 等待用户指示，**禁止自行决定继续执行**
    读取后输出: "GATE PASSED: references/multi-repo.md loaded"。
    <!-- /GATE:REF -->
-4. **路由判定后必须补充创建分支 task（MANDATORY）**：执行计划在 Step 0 构建时尚未运行本步多仓检测，单仓/多仓分支任务无法在计划确认时创建。因此**路由结果输出后、进入主流程主体前，必须立即用 TaskCreate 补齐分支任务**（单仓 → Step 4~10 各一个 task；多仓 → M-1~M-6 各一个 task，关闭的 M 不创建）。禁止跳过。
+4. **路由判定后必须补充创建分支 task（MANDATORY）**：执行计划在 Step 0 构建时尚未运行本步多仓检测，单仓/多仓分支任务无法在计划构建时创建。因此**路由结果输出后、进入主流程主体前，必须立即用 TaskCreate 补齐分支任务**（单仓 → Step 4~10 各一个 task；多仓 → M-1~M-6 各一个 task，关闭的 M 不创建）。禁止跳过。
 5. 按 references/multi-repo.md 执行 M-1~M-6（**跳过Step 4~10 + 门控检查**，M-2内部子代理按拓扑分批并行读取context files和执行代码生成；M-3~M-6 为**可配置步骤**，执行与否以执行计划为准——含对应 `key` 条目则按 `ref_file.multi` 指令文件执行，不含则跳过，详见 multi-repo.md 头部"可配置步骤与编排点"）
    - M-1: 多仓检测（读取repo_assignments.json，involved_repos>1 = 多仓）
    - M-2: 按仓拓扑分批 + 子代理并行代码生成（替代Step 4~10）
@@ -339,7 +204,7 @@ Always announce: "Using change: <name>" and how to override (e.g., `/core-apply 
 - Step 13 (Unit Test) → M-5
 - Step 14 (Gate-2 L5) → M-6
 
-**单仓模式**：路由判定后必须用 TaskCreate 补充创建分支 task（MANDATORY）：Step 4（检查 change 状态）→ Step 5（获取执行指令）→ Step 6（读取上下文文件）→ Step 7（加载代码生成原则 GATE）→ Step 8（展示当前进度，执行计划含 show_progress 条目才创建）→ Step 9（任务 Skill 准备，执行计划含启用条目才创建）→ Step 10（代码生成任务）各一个 task（Step 0~3 与 Step 15、可配置内置步骤、编排点条目已在计划确认时创建，见"计划确认后必须创建 task 任务"段）。然后继续Step 4
+**单仓模式**：路由判定后必须用 TaskCreate 补充创建分支 task（MANDATORY）：Step 4（检查 change 状态）→ Step 5（获取执行指令）→ Step 6（读取上下文文件）→ Step 7（加载代码生成原则 GATE）→ Step 8（展示当前进度，执行计划含 show_progress 条目才创建）→ Step 9（任务 Skill 准备，执行计划含启用条目才创建）→ Step 10（代码生成任务）各一个 task（Step 0~3 与 Step 15、可配置内置步骤、编排点条目已在计划构建时创建，见"计划解析成功后必须创建 task 任务"段）。然后继续Step 4
 
 ### 4. Check status to understand the schema
 
@@ -467,7 +332,7 @@ The files depend on the schema being used:
 > - **执行计划 steps 数组含 `config_key=l5_coverage`（type=built_in）条目** → 从该条目 `ref_file.single` 字段取指令文件（动态路径解析参见本SKILL Reference文件路径解析章节）并 Read，按其中指令执行
 > - **执行计划不含本步骤** → 直接进入下一步（指令文件不加载，内容不进上下文）
 >
-> **依赖规则**：`l5_coverage` 依赖 `unit_test`。若 `unit_test` 关闭（配置或确认时取消），`l5_coverage` 自动降级（reason=`dependency_downgraded`），执行计划不含本步骤。
+> **依赖规则**：`l5_coverage` 依赖 `unit_test`。若 `unit_test` 关闭（配置关闭），`l5_coverage` 自动降级（reason=`dependency_downgraded`），执行计划不含本步骤。
 
 ### 15. On completion or pause, show status **[可配置: completion_report]**
 
@@ -483,4 +348,3 @@ This skill supports the "actions on a change" model:
 
 - **Can be invoked anytime**: Before all artifacts are done (if tasks exist), after partial implementation, interleaved with other actions
 - **Allows artifact updates**: If implementation reveals design issues, suggest updating artifacts - not phase-locked, work fluidly
-

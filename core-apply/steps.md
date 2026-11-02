@@ -12,7 +12,7 @@
 
 | 序号 | 步骤名 | 对应 SKILL.md Step | 说明 |
 |------|--------|-------------------|------|
-| 0 | build-execution-plan | Step 0 | 构建执行计划（MANDATORY）— 必须为第一个 Phase 的第一个动作，先于 version-check；`main.py flow-config --json --skill core-apply`，持久化 execution-plan-core-apply.json / skipped-core-apply.json，按 config_missing 与 scenario A~E 确认（首次运行无配置文件时先提供配置机会） |
+| 0 | build-execution-plan | Step 0 | 构建执行计划（MANDATORY）— 必须为第一个 Phase 的第一个动作，先于 version-check；`main.py flow-config --json --skill core-apply`，持久化 execution-plan-core-apply.json / skipped-core-apply.json，配置为唯一事实源、构建后直接按计划执行（首次运行无配置文件时先提供配置机会） |
 | 1 | version-check | Step 1 | Version Check **[可配置: version_check]** — 第一个 Phase 的第二个动作，紧随 Step 0；指令文件 references/version-check.md，存在性判断见执行计划（含则 Read 执行，不含则跳过） |
 | 2 | select-change | Step 2 | 选择 change；多个活跃 change 时用 AskUserQuestion 让用户选择 |
 | 3 | multi-repo-detect | Step 3 | 多仓检测与路由 — 读取repo_assignments.json判断模式；单仓模式继续Step 4，多仓模式进入M-1~M-6 |
@@ -41,7 +41,7 @@
 
 | 序号 | 步骤名 | 对应 SKILL.md Step | 说明 |
 |------|--------|-------------------|------|
-| 0 | build-execution-plan | Step 0 | 构建执行计划（MANDATORY）— 必须为第一个 Phase 的第一个动作，先于 version-check；`main.py flow-config --json --skill core-apply`，持久化 execution-plan-core-apply.json / skipped-core-apply.json，按 config_missing 与 scenario A~E 确认（多仓下计划放根项目 docs/.flow_context/） |
+| 0 | build-execution-plan | Step 0 | 构建执行计划（MANDATORY）— 必须为第一个 Phase 的第一个动作，先于 version-check；`main.py flow-config --json --skill core-apply`，持久化 execution-plan-core-apply.json / skipped-core-apply.json，配置为唯一事实源、构建后直接按计划执行（多仓下计划放根项目 docs/.flow_context/） |
 | 1 | version-check | Step 1 | Version Check **[可配置: version_check]** — 第一个 Phase 的第二个动作，紧随 Step 0，多仓下不变；指令文件 references/version-check.md（单多仓通用），存在性判断见执行计划；Step 8 同为主会话可配置步骤（show_progress 默认关闭，M-2 之前存在性判断执行） |
 | 2 | select-change | Step 2 | 选择 change — 不变 |
 | 3 | M-1 | Step 3 | 多仓检测 + 多仓 change 状态检查 — 读取 repo_assignments.json，确认 involved_repos 列表 + Agent 直接 Glob/Read 检查各仓 artifacts/tasks 状态 + 加载 references/multi-repo.md GATE |

@@ -91,82 +91,19 @@ sys.exit(result.returncode)
 
 **输出 JSON 内容判断**（非零 exit code 不意味着失败，必须以 JSON 内容为准）：
 
-- `"ok": false` → 配置校验/解析失败（`error` 或 `errors` 说明原因）→ **MUST STOP**，告知用户修正 `~/.corespec/flow-config.json` 后重试，禁止继续执行。
-- `"ok": true` → 执行计划已持久化到 `docs/.flow_context/execution-plan-core-design.json`，skipped 标记到 `docs/.flow_context/skipped-core-design.json`。按 `config_missing` 与 `scenario` 决定确认动作：
+- `"ok": false` → 配置文件校验失败：向用户原样展示 `error`/`errors`、指出配置文件路径（`~/.corespec/flow-config.json`），修复前 **MUST STOP**，禁止继续执行。
+- `"ok": true` → 执行计划已按配置构建并持久化到 `docs/.flow_context/execution-plan-core-design.json`，skipped 标记到 `docs/.flow_context/skipped-core-design.json`，**直接按计划执行，无需流程配置确认**：
+  - **`"config_initialized": true`**（首次自动生成配置文件）→ 在执行总结中添加一行提示（仅首次，`false` 时静默跳过）："已生成流程编排配置文件 `~/.corespec/flow-config.json`（如需启停步骤或添加自定义步骤，直接编辑该文件，下次运行自动生效；说明见 `~/.corespec/flow-config-guide.md`）。"
   - **`"template_initialized": true`**（首次自动初始化模板）→ 在执行总结中添加一行提示："已初始化可编辑的产物模板（如需自定义章节，编辑 `~/.corespec/` 下的模板文件，执行 `python -m core_templates --guide` 查看使用指南）。"——**仅首次出现时告知，`false` 时静默跳过**
 
-**首次运行（`config_missing: true`）——必须给用户配置机会**：
+流程配置无需交互确认；启用任务 Skill 消费后，候选选择、安装与冲突处理等业务确认仍按消费指令执行。
 
-配置文件 `~/.corespec/flow-config.json` 不存在时，这是用户**唯一一次**接触 flow-config 框架的机会。**不得静默跳过**——必须用 **AskUserQuestion** 向用户提供"生成模板 / 继续默认"选择：
-
-```
-AskUserQuestion({
-  questions: [{
-    question: "未检测到 flow-config 配置文件（~/.corespec/flow-config.json）。\n当前将以全默认计划执行（内置步骤按出厂默认启停：version_check/fetch_rules/read_similar/expert_experience/design_traceability/design_review/cleanup 开启，skill_consumption 默认关闭，无自定义步骤）。\n是否生成配置模板以便启停步骤或插入自定义步骤？\n<summary>",
-    header: "首次配置",
-    options: [
-      { label: "生成模板", description: "生成 ~/.corespec/flow-config.json 模板（含全部可配置项说明），用户修改后重建计划" },
-      { label: "继续默认", description: "直接使用全默认计划执行，本次不再配置" }
-    ]
-  }])
-```
-
-- 用户选择 **生成模板**：运行以下命令生成带注释的 JSONC 模板并同步配置指南到 `~/.corespec/flow-config-guide.md`：
-
-```bash
-python -c "
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path.home() / '.config' / 'opencode' / 'skills' / 'core-shared' / 'scripts'))
-from core_paths import get_opencode_config_dir
-config_dir = get_opencode_config_dir()
-import subprocess
-result = subprocess.run(
-    [sys.executable, config_dir / 'skills' / 'core-design' / 'scripts' / 'main.py', 'flow-config', '--init', '--skill', 'core-design'],
-    encoding='utf-8', capture_output=True, text=True)
-print(result.stdout)
-sys.exit(result.returncode)
-"
-```
-
-  告知用户修改 `~/.corespec/flow-config.json` 后**重新运行本构建命令**。用户选择"继续默认"或确认修改后 → 进入 Phase 1（版本检查）
-- 用户选择 **继续默认**：直接使用已持久化的全默认计划，进入 Phase 1（版本检查）
-
-**命名空间缺失（`config_missing: false` 且 `ns_missing: true`）——也必须给用户配置机会**：
-
-配置文件 `~/.corespec/flow-config.json` 已存在但**本 skill 的命名空间不存在**——必须用 **AskUserQuestion** 向用户提供"生成模板 / 继续默认"选择：
-
-```
-AskUserQuestion({
-  questions: [{
-    question: "flow-config 配置文件已存在，但未包含 core-design 命名空间（首次接触本 skill 的配置项）。\n当前将以全默认计划执行（内置步骤按出厂默认启停：version_check/fetch_rules/read_similar/expert_experience/design_traceability/design_review/cleanup 开启，skill_consumption 默认关闭，无自定义步骤）。\n是否生成配置模板以便启停步骤或插入自定义步骤？\n<summary>",
-    header: "首次配置",
-    options: [
-      { label: "生成模板", description: "生成 ~/.corespec/flow-config.json 的 core-design 分区模板（含全部可配置项说明），用户修改后重建计划" },
-      { label: "继续默认", description: "直接使用全默认计划执行，本次不再配置" }
-    ]
-  }])
-```
-
-- 用户选择 **生成模板**：运行上方 `--init` 命令（文件不存在时生成完整模板；已存在时从模板提取 core-design 示例块追加到顶层闭合前），告知用户确认后**重新运行本构建命令** → 进入 Phase 1（版本检查）
-- 用户选择 **继续默认**：直接使用已持久化的全默认计划，进入 Phase 1（版本检查）
-
-**非首次运行（`config_missing: false`）**，按 `scenario` 决定确认动作：
-
-| scenario | 含义 | 动作 |
-|----------|------|------|
-| `A` | 命名空间未配置/解析后全默认（配置文件存在） | 命名空间已配置且解析全默认 → **跳过确认**（零接触）；**命名空间缺失（`ns_missing: true`）→ 同首次运行，必须用 AskUserQuestion 提供"生成模板 / 继续默认"** |
-| `B` | 首次·非默认 | 用 **AskUserQuestion**（`multiSelect: true`）展示完整勾选列表（可关闭的内置步骤 + 自定义步骤） |
-| `C` | 续跑·一致（指纹匹配） | 轻量确认：展示计划摘要，用户确认/跳过 |
-| `D` | 计划缺失·命名空间存在 | 用 **AskUserQuestion** 确认：配置非默认 → `multiSelect: true` 完整勾选列表；配置全默认 → 轻量确认 |
-| `E` | 配置变更（指纹不匹配） | 用 **AskUserQuestion** 展示变更后计划，确认后继续 |
-
-**计划确认后必须创建 task 任务（MANDATORY）**：计划确认完成后，进入主流程前，必须使用 **TaskCreate 工具**创建 task 任务清单：
+**计划解析成功后必须创建 task 任务（MANDATORY）**：进入主流程前，必须使用 **TaskCreate 工具**创建 task 任务清单：
 - **先创建当前阶段即可确定的任务**：
   - 固定主流程步骤：构建执行计划 → Phase 1（版本检查，`version_check` 关闭时跳过）→ Phase 2（获取规范，`fetch_rules` 关闭时跳过 GATE 仍执行）→ Phase 3（收集上下文）→ Phase 4（代码理解）→ Phase 8（生成设计文档）各建一个 task
   - 按执行计划 `steps` 数组，为每个启用的可配置内置步骤（`config_key` = `version_check`/`fetch_rules`/`read_similar`/`expert_experience`/`skill_consumption`/`design_traceability`/`design_review`/`cleanup`）创建 task；关闭的步骤不创建
   - 每个启用的编排点插槽条目（`orchestration_points` 中的 reference/skill 步骤）同样创建 task
-- **多仓检测后必须补充创建分支 task（MANDATORY）**：执行计划在构建时尚未运行多仓检测，单仓/多仓分支无法在确认时预知。Phase 3 多仓检测输出路由结果后，必须立即用 TaskCreate 补齐分支任务：单仓 → Phase 5（`read_similar` 关闭时跳过）→ Phase 6 → Phase 7（`expert_experience` 关闭时跳过）→ Phase 8 → Phase 9（`skill_consumption` 关闭时跳过）→ Phase 10（`design_traceability` 关闭时跳过）→ Phase 11（`design_review` 关闭时跳过）→ Phase 12（`cleanup` 关闭时跳过）各建一个 task；多仓 → 按 references/multi-repo.md 的 M-1/M-2/Phase 9/M-3a/M-3b/cleanup 各建一个 task（Phase 9 对应 `skill_consumption`，由主会话聚合执行；M-3a 对应 `design_traceability`、M-3b 对应 `design_review`、cleanup 对应 `cleanup`，关闭的 M 不创建；M-2 不可关，始终创建）
+- **多仓检测后必须补充创建分支 task（MANDATORY）**：执行计划在构建时尚未运行多仓检测，单仓/多仓分支无法在计划构建时预知。Phase 3 多仓检测输出路由结果后，必须立即用 TaskCreate 补齐分支任务：单仓 → Phase 5（`read_similar` 关闭时跳过）→ Phase 6 → Phase 7（`expert_experience` 关闭时跳过）→ Phase 8 → Phase 9（`skill_consumption` 关闭时跳过）→ Phase 10（`design_traceability` 关闭时跳过）→ Phase 11（`design_review` 关闭时跳过）→ Phase 12（`cleanup` 关闭时跳过）各建一个 task；多仓 → 按 references/multi-repo.md 的 M-1/M-2/Phase 9/M-3a/M-3b/cleanup 各建一个 task（Phase 9 对应 `skill_consumption`，由主会话聚合执行；M-3a 对应 `design_traceability`、M-3b 对应 `design_review`、cleanup 对应 `cleanup`，关闭的 M 不创建；M-2 不可关，始终创建）
 - task 描述注明对应步骤/config_key/M 阶段与启停状态
 - 补建时复用已存在的同一步骤 task，只创建缺失项，禁止重复创建。
 - **禁止跳过 TaskCreate**（用户可直观看到哪些步骤要执行、哪些已关闭）
@@ -177,7 +114,7 @@ AskUserQuestion({
 
 - 执行计划是唯一权威。内置步骤只从 `steps` 中查找 `type=built_in`、`enabled=true` 且 `config_key` 匹配的条目，读取其 `ref_file.single` / `ref_file.multi`；没有启用条目时跳过，不加载指令文件。
 - 自定义步骤只从 `orchestration_points` 对应插槽读取，按计划顺序（`order` 升序）串行执行。`type=reference` 时 Read 条目的 `file` 并执行；`type=skill` 时调用条目的 `skill`，`run_mode=subagent` 时启动独立子代理。显式 `enabled=false` 的条目跳过；插槽为空时不加载任何自定义指令。
-- 自定义步骤的声明由 `flow_config.py` 的 `TEMPLATE_JSONC` 承载；配置中整块注释表示关闭，取消整块注释表示开启，重建并确认执行计划后生效。骨架不指定自定义步骤名称或指令文件，不根据已有产物、输入参数或其他步骤推断启用。
+- 自定义步骤的声明由 `flow_config.py` 的 `TEMPLATE_JSONC` 承载；配置中整块注释表示关闭，取消整块注释表示开启，下次运行自动重建执行计划后生效。骨架不指定自定义步骤名称或指令文件，不根据已有产物、输入参数或其他步骤推断启用。
 - 按下表在阶段边界调度插槽；多仓的 change 级插槽由主会话聚合执行一次，子代理不重复调度。某个内置步骤关闭只跳过该步骤，仍检查其后插槽，由计划中的依赖结果决定各自定义条目是否执行。
 - 计划不可读取或结构无效时停止并报告；已启用条目的指令文件缺失时停止并报告，不从配置源重建或静默跳过。
 
@@ -413,4 +350,3 @@ Ready for implementation. Run /core-apply <change-name>
 - **Checkbox format**: The schema requires checkbox format (`- [ ]`) for tasks
 - **Verification required**: Always verify generated artifacts match schema expectations
 - **Design anchors**: Use `anchor_extractor.py` to automatically extract design anchors for tasks from delta_design.md metadata
-
