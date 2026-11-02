@@ -1,8 +1,8 @@
 # Phase 12: 清理临时文件（多仓模式指令文件）
 
-> 本文件为可配置步骤 `cleanup` 的指令文件（多仓版）。仅在执行计划含 `key=cleanup` 条目时被 Read。
+> 本文件为可配置步骤 `cleanup` 的指令文件（多仓版）。仅在执行计划 `steps` 含 `config_key=cleanup`、`type=built_in`、`enabled=true` 的条目时，由骨架读取该条目的 `ref_file.single` / `ref_file.multi` 后执行。
 
-**执行位置**：M-3b（各仓 design-doc-reviewer 审查）完成后执行。如 M-3a/M-3b 被关闭，则 M-2 完成后执行。
+**执行位置**：M-3b（各仓 design-doc-reviewer 审查）完成后执行；如 M-3b 关闭，则在 M-3a 完成后执行；如 M-3a/M-3b 均关闭，则在 M-2 全部仓完成、通用 `post-generate` 插槽执行完毕且 Phase 9 完成或按计划跳过后执行。关闭审查步骤仍须检查其后的通用插槽。
 
 **动作**：清理项目级变更目录 + 各仓变更目录的临时文件。多仓模式下为**双层清理**（项目级 + 各仓级）。 仅删除已确认的临时产物；仍被持久文档引用的文件必须保留，含保留文件的目录不得整目录删除，下方删除示例及清理验证均须排除这些保留项。
 
@@ -137,7 +137,7 @@
 
 ## 执行时机
 
-- 在 M-3b 完成后执行（如 M-3b 被关闭，则 M-3a 完成后执行；如 M-3a/M-3b 均被关闭，则 M-2 完成后执行）
+- 在 M-3b 完成后执行（如 M-3b 被关闭，则 M-3a 完成后执行；如 M-3a/M-3b 均被关闭，则在 M-2 全部仓完成、通用 `post-generate` 插槽执行完毕且 Phase 9 完成或按计划跳过后执行）。关闭审查步骤仍须检查其后的通用插槽。
 - 确保 design.md 被用于生成 delta_design.md 后再清理
 - 确保 clarification_summary.json 已被 design-doc-reviewer 读取后再清理（如 design_review 被关闭，则可直接清理）
 - 确保 drafts 目录已被 M-2 各仓按仓生成阶段读取后再清理

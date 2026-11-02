@@ -1,6 +1,6 @@
 # Phase 1: 版本检查（指令文件）
 
-> 本文件为可配置步骤 `version_check` 的指令文件（单仓/多仓通用，无模式差异）。仅在执行计划含 `key=version_check` 条目时被 Read。
+> 本文件为可配置步骤 `version_check` 的指令文件（单仓/多仓通用，无模式差异）。仅在执行计划 `steps` 含 `config_key=version_check`、`type=built_in`、`enabled=true` 的条目时，由骨架读取该条目的 `ref_file.single` / `ref_file.multi` 后执行。
 
 **执行位置**：构建执行计划之后立即执行，作为流程的第一个动作（Phase 2 之前）。不要单独提前执行——它已在计划内。
 

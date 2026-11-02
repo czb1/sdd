@@ -1,6 +1,6 @@
 # Phase 11: design-doc-reviewer 审查（单仓模式指令文件）
 
-> 本文件为可配置步骤 `design_review` 的指令文件（单仓版）。仅在执行计划含 `key=design_review` 条目时被 Read。
+> 本文件为可配置步骤 `design_review` 的指令文件（单仓版）。仅在执行计划 `steps` 含 `config_key=design_review`、`type=built_in`、`enabled=true` 的条目时，由骨架读取该条目的 `ref_file.single` / `ref_file.multi` 后执行。
 
 **【执行模式】**: subagent（强制）— 此步骤必须通过子代理执行，禁止主会话直接执行
 **【禁止】主会话直接调用 design-doc-reviewer Skill tool** — 主会话必须通过 Agent tool 启动子代理，由子代理调用 Skill tool

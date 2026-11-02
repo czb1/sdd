@@ -1,6 +1,6 @@
 # Phase 2: 多语言规范获取 + 筛选（B 档指令文件）
 
-> 本文件为可配置步骤 `fetch_rules` 的指令文件（单仓/多仓通用，无模式差异）。仅在执行计划含 `key=fetch_rules` 条目时被 Read。
+> 本文件为可配置步骤 `fetch_rules` 的指令文件（单仓/多仓通用，无模式差异）。仅在执行计划 `steps` 含 `config_key=fetch_rules`、`type=built_in`、`enabled=true` 的条目时，由骨架读取该条目的 `ref_file.single` / `ref_file.multi` 后执行。
 > **B 档语义**：`fetch_rules` 只控制 code-rule-tree → 筛选 → code-rule-content（Step 1~3）的执行，**不控制** design-principles / design-views GATE 加载——GATE 文件无条件加载（GATE:REF 标记），与 `fetch_rules` 开关正交。
 
 **执行位置**：Phase 1（版本检查）之后、Phase 3（收集上下文）之前。

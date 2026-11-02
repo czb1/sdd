@@ -1,6 +1,6 @@
 # Step 14: Gate-2 L5 UT覆盖度验证（单仓模式指令）
 
-> 本文件为可配置步骤 `l5_coverage` 的指令文件（单仓版）。仅在执行计划含 `key=l5_coverage` 条目时被 Read。
+> 本文件为可配置步骤 `l5_coverage` 的指令文件（单仓版）。仅在执行计划 `steps` 含 `config_key=l5_coverage`、`type=built_in`、`enabled=true` 的条目时，由骨架读取该条目的 `ref_file.single` / `ref_file.multi` 后执行。
 > **依赖规则**：`l5_coverage` 依赖 `unit_test`。若 `unit_test` 关闭，本步骤自动降级，本文件不被 Read。
 
 **先读取 tasks.md 头部 `测试策略` 字段**判断验证预期（主流程相同：调用 cross-doc-checker --layer L5 → 检查 CHECK-ID → 失败自动修复循环 → 通过后流程完成；差异仅在 TC-SEMANTIC-COVERAGE 的命中方式与修复动作）：

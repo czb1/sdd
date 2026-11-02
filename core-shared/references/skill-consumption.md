@@ -25,7 +25,7 @@
 
 ## CLI 命令与字段传递
 
-以下映射依据 [coreinsight-cli 实现](https://github.com/czb1/coreinsight-cli/blob/a5aa6d3338cc70a4b1896ae56c07e3328d6f7ed9/internal/cli/skill.go)。仅在消费步骤已启用时检查实际安装版本的帮助与登录状态：`coreinsight-cli skill --help`、`coreinsight-cli auth status`；未登录时用 `coreinsight-cli auth login` 完成当前版本的浏览器授权后再继续。命令不可用或返回错误时报告真实失败，不编造替代命令或绕过 CLI 请求接口。
+以下映射依据 [coreinsight-cli Skill 命令实现](https://github.com/czb1/coreinsight-cli/blob/d754c6dd255e56aa6881043a6effd1d36c406dc6/internal/cli/skill.go)及[登录实现](https://github.com/czb1/coreinsight-cli/blob/d754c6dd255e56aa6881043a6effd1d36c406dc6/internal/cli/auth.go)。仅在消费步骤已启用时检查实际安装版本的帮助与登录状态：`coreinsight-cli skill --help`、`coreinsight-cli auth status`；未登录或会话缺少调用者身份时，用 `coreinsight-cli auth login --caller_id "<真实调用方工号>"` 完成浏览器授权并保存会话后再继续。工号不明确时由主会话获取，不能从仓名或候选作者推断。命令不可用或返回错误时报告真实失败，不编造替代命令或绕过 CLI 请求接口。
 
 ### 业务链路：代码仓 → 产品 → 场景 → Skill
 
@@ -54,17 +54,17 @@ coreinsight-cli skill product-scenes --dim_code "22633567"
 coreinsight-cli skill scene-skills --first_scene "需求开发" --second_scene "MML开发" --dim_type "产品级" --dim_name "UPCF"
 ```
 
-`skill scene-search` 仍是把产品 / 场景拼成关键词的智能搜索；本业务链路使用 `scene-skills` 取得场景关联列表，不能把 `scene-search` 的结果冒充场景关联。分步路径不得省略 `offering_id → product-scenes`，也不要先按产品名猜场景。
+本业务链路使用 `scene-skills` 取得场景关联列表；当前 CLI 不提供 `skill scene-search`。分步路径不得省略 `offering_id → product-scenes`，也不要先按产品名猜场景；关键词检索使用 `skill search`，其结果不能冒充场景关联。
 
 ### 通用检索、业务兜底与下载
 
 | 用途 | 命令 |
 |---|---|
 | 通用能力或业务未命中时检索最多 3 个 Skill | `coreinsight-cli skill search --query "<任务描述、语言与关键词>" --page 1 --page_size 3` |
-| 仅业务未命中时检索最多 3 条经验 | `coreinsight-cli experience search --query "<任务相关关键词>" --caller_id "<调用方工号>" --page 1 --page_size 3 --scene ALL` |
-| 锁定选择后下载 ZIP | `coreinsight-cli skill download --skill_id "<真实 Skill ID>" --user_id "<调用方工号>" --output "<临时下载目录>"` |
+| 仅业务未命中时检索最多 3 条经验 | `coreinsight-cli experience search --query "<任务相关关键词>" --page 1 --page_size 3 --scene ALL` |
+| 锁定选择后下载 ZIP | `coreinsight-cli skill download --skill_id "<真实 Skill ID>" --output "<临时下载目录>"` |
 
-当前浏览器登录不保存工号，经验检索的 `--caller_id` 和下载的 `--user_id` 使用已知的真实调用方工号；缺失时获取该信息或报告该项无法执行，不假设 CLI 可从登录推导。经验检索的 `--user_id` 是贡献者过滤，本流程默认不传。下载可在版本已知时追加 `--version "<真实版本>"`。
+登录时绑定的 `caller_id` 随会话保存，经验检索与 Skill 下载自动读取该身份；业务命令中的可选 `--caller_id` 仅校验是否与会话一致，不能覆盖会话身份。下载命令不接受 `--user_id`，CLI 内部会将会话身份映射为下载接口的 `userId`。经验检索的 `--user_id` 是贡献者过滤，本流程默认不传。下载可在版本已知时追加 `--version "<真实版本>"`。
 
 按名称去重不等于按名称下载：下载前保留已选结果的真实 Skill ID / 版本。场景结果只有名称与描述、缺少 ID 时，用 `coreinsight-cli skill search --query "<已选 Skill 名称>" --page 1 --page_size 3` 定位并核对同一个 Skill；不得猜 ID、直接取首条或静默改选。无法唯一定位时报告或交由主会话确认。CLI 仅下载 ZIP，校验、解压、安装与 tasks.md 回写按下文执行。
 

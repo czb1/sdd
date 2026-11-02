@@ -1,6 +1,6 @@
 # Step 12: Code Review（单仓模式指令）
 
-> 本文件为可配置步骤 `code_review` 的指令文件（单仓版）。仅在执行计划含 `key=code_review` 条目时被 Read。
+> 本文件为可配置步骤 `code_review` 的指令文件（单仓版）。仅在执行计划 `steps` 含 `config_key=code_review`、`type=built_in`、`enabled=true` 的条目时，由骨架读取该条目的 `ref_file.single` / `ref_file.multi` 后执行。
 
 **检查范围**：代码生成任务（Step 10）产出的变更文件（增量，禁止全量扫描）。
 
