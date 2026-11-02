@@ -1778,5 +1778,90 @@ SLOT_LABELS: Dict[str, str] = {
     "core-explore:post-cleanup": "清理后（阶段11 后）",
 }
 
+def _step_label(entry: Dict[str, Any]) -> str:
+    """Human label for a steps entry."""
+    md = entry.get("skill_md_step", entry.get("key", ""))
+    desc = entry.get("description", "")
+    return f"{md} {desc}".strip()
+
+
+def _slot_label(slot: str, skill: str = "core-apply") -> str:
+    """Human label for a slot, resolved per-skill (slots may collide across skills)."""
+    return SLOT_LABELS.get(f"{skill}:{slot}", SLOT_LABELS.get(slot, slot))
+
+
+def build_summary(plan: Dict[str, Any]) -> str:
+    """
+    Build a clean, sectioned confirmation summary for the plan.
+
+    Sections:
+      A. 主流程步骤 (steps in SKILL.md execution order, with enable/disable state)
+      B. 编排点子环节 (non-empty slots only; empty slots are omitted for clarity)
+      C. 已关闭 (disabled reasons; omitted when none)
+    """
+    lines: List[str] = []
+
+    # A. main flow steps
+    steps = plan.get("steps", [])
+    lines.append("【主流程步骤】")
+    for e in steps:
+        if e.get("type") == "fixed":
+            lines.append(f"  - {_step_label(e)}")
+        elif e.get("enabled"):
+            lines.append(f"  - {_step_label(e)} [已启用]")
+        # closed built-in steps are reported in section C only
+    if not steps:
+        lines.append("  （无）")
+
+    # B. orchestration sub-step slots (only non-empty ones)
+    slots = plan.get("orchestration_points", {})
+    active_slots = {s: entries for s, entries in slots.items() if entries}
+    if active_slots:
+        lines.append("【编排点子环节】")
+        for slot in get_orchestration_points(plan.get("skill", "")):
+            entries = active_slots.get(slot)
+            if not entries:
+                continue
+            descs = []
+            for e in entries:
+                extra = f"（{e.get('run_mode', '')}）" if e.get("run_mode") else ""
+                descs.append(f"{e.get('key')}{extra}")
+            lines.append(f"  - {_slot_label(slot, plan.get('skill', 'core-apply'))}: {', '.join(descs)}")
+    else:
+        lines.append("【编排点子环节】")
+        lines.append("  （无）")
+
+    # C. closed steps (出厂默认关闭态不展示——用户未主动关闭，无需提示)
+    user_closed = {
+        key: info
+        for key, info in plan.get("disabled", {}).items()
+        if not info.get("default_disabled")
+    }
+    if user_closed:
+        lines.append("【已关闭】")
+        for key, info in user_closed.items():
+            reason = info.get("reason", "")
+            extra = f"（依赖 {info.get('dependency_of')}）" if info.get("dependency_of") else ""
+            lines.append(f"  - {key}: {reason}{extra}")
+
+    return "\n".join(lines)
+
+
+def sync_skipped(project_root: str, skill: str, plan: Dict[str, Any]) -> Path:
+    """Write skipped-<skill>.json same-source with the FINAL persisted plan."""
+    skipped = build_skipped(plan)
+    ctx_dir = get_flow_context_dir(project_root)
+    ctx_dir.mkdir(parents=True, exist_ok=True)
+    path = get_skipped_path(project_root, skill)
+    path.write_text(
+        json.dumps(skipped, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
+    return path
+
+
+# ---------------------------------------------------------------------------
+# Persistence
+# ---------------------------------------------------------------------------
+
 
 
