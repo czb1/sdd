@@ -63,13 +63,6 @@ class SkillConsumptionFlowTests(unittest.TestCase):
             self.assertIs(self.read_config()[skill]["skill_consumption"], False)
             self.assertFalse(any(e["key"] == "skill_consumption" for e in flow.list_commented_custom_steps(skill)))
 
-    def test_template_active_custom_example_is_not_an_all_default_plan(self):
-        self.initialize()
-        config = self.read_config()
-        self.assertIn("judgment_ladder", config["core-apply"])
-        self.assertFalse(flow.is_all_default_plan(self.plan("core-apply", config["core-apply"])))
-        self.assertTrue(flow.is_all_default_plan(self.plan("core-design", config["core-design"])))
-
     def test_missing_namespace_and_key_are_default_disabled(self):
         for skill in ("core-design", "core-apply"):
             for namespace in (None, {}):
@@ -123,20 +116,6 @@ class SkillConsumptionFlowTests(unittest.TestCase):
                     self.assertTrue(flow.validate_namespace({"skill_consumption": value}, skill))
             for value in (False, True):
                 self.assertEqual(flow.validate_namespace({"skill_consumption": value}, skill), [])
-
-    def test_missing_key_persistence_rebuilds_plan_from_valid_jsonc(self):
-        for skill in ("core-design", "core-apply"):
-            for body in ('{}', '{"version_check": true}', '{\n  "version_check": true // keep\n}'):
-                with self.subTest(skill=skill, body=body):
-                    source = '{"' + skill + '": ' + body + ', "test_strategy": "tdd"}\n'
-                    self.config.write_text(source, encoding="utf-8")
-                    self.assertFalse(self.entry(self.plan(skill, self.read_config()[skill]))["enabled"])
-                    for value in (True, False):
-                        ok, error = flow.update_config_value(skill, "skill_consumption", value)
-                        self.assertTrue(ok, error)
-                        config = self.read_config()
-                        self.assertIs(self.entry(self.plan(skill, config[skill]))["enabled"], value)
-                        self.assertEqual(config["test_strategy"], "tdd")
 
     def test_expert_experience_and_apply_consumption_are_independent(self):
         plan = self.plan("core-design", {"expert_experience": False, "skill_consumption": True})

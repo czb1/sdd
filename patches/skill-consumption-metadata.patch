@@ -1,0 +1,33 @@
+--- a/core-shared/scripts/flow_config.py
++++ b/core-shared/scripts/flow_config.py
+@@ -295,10 +295,10 @@
+         },
+     ],
+     # core-design: 8 built-in steps（A 档 7 键 + B 档 1 键）。
+-    # SKILL.md 采用 "Phase 1~11" 连续编号，与 steps.md 序号一一对应——
++    # SKILL.md 采用 "Phase 1~12" 连续编号，与 steps.md 序号一一对应——
+     # `at` 使用 0-based EXECUTION 位置（steps.md 序号 − 1 = Phase 编号 − 1），
+     # 编号约定见 skeleton-core-design.md §5：step-N = Phase 编号 − 1。
+-    # 内容型 3 键（version_check / read_similar / expert_experience）单多仓共用
++    # 内容型 4 键（version_check / read_similar / expert_experience / skill_consumption）单多仓共用
+     # 单文件；通道型 3 键（design_traceability / design_review / cleanup）按
+     # 模式分文件 {single, multi} 指向独立 *-multi.md（多仓承载 M-3a/M-3b/cleanup 节）。
+     # B 档 1 键（fetch_rules）只控 code-rule 拉取（Step 1~3），不控
+@@ -348,7 +348,7 @@
+             "default": True,
+             "depends_on": [],
+             "skill_md_step": "Phase 7",
+-            "description": "获取专家经验（paradigm-exp-use）",
++            "description": "准备已有项目经验及任务能力查找上下文",
+             "ref_file": {
+                 "single": "references/expert-experience.md",
+                 "multi": "references/expert-experience.md",
+@@ -567,7 +567,7 @@
+   //   "version_check": true,       // Phase 1 版本检查
+   //   "fetch_rules": true,         // Phase 2 多语言规范获取（B 档：只控 code-rule 拉取，不控 design-principles/design-views GATE）
+   //   "read_similar": true,        // Phase 5 读取相似需求参考归档
+-  //   "expert_experience": true,   // Phase 7 获取专家经验（paradigm-exp-use，纯增益）
++  //   "expert_experience": true,   // Phase 7 准备已有项目经验及任务能力查找上下文（不独立拉取经验，纯增益）
+   //   "skill_consumption": false, // Phase 9 任务 Skill 查找、确认、安装与关联（默认关闭）
+   //   "design_traceability": true, // Phase 10 设计追溯验证（cross-doc-checker L2/L3，subagent 强制）
+   //   "design_review": true,       // Phase 11 design-doc-reviewer 审查（subagent 强制）

@@ -1,6 +1,6 @@
 # Step 15: 完成或暂停时展示状态（指令文件）
 
-> 本文件为可配置步骤 `completion_report` 的指令文件（单仓/多仓通用，无模式差异）。仅在执行计划 `steps` 含 `config_key=completion_report`、`type=built_in`、`enabled=true` 的条目时，由骨架读取该条目的 `ref_file.single` / `ref_file.multi` 后执行。
+> 本文件为可配置步骤 `completion_report` 的指令文件（单仓/多仓通用，无模式差异）。仅在执行计划含 `key=completion_report` 条目时被 Read。
 
 **执行位置**：主流程末尾（Step 14 L5 覆盖度验证之后）。输出执行报告并展示可配置步骤状态。
 

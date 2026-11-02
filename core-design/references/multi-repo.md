@@ -15,10 +15,10 @@
 
 多仓模式下，可配置步骤（追溯验证/文档审查/清理/规范拉取/相似需求/专家经验/任务 Skill 关联/版本检查）与编排点插槽的**执行与否以构建执行计划持久化的执行计划为准**（`docs/.flow_context/execution-plan-core-design.json`），与单仓模式同一权威：
 
-- **有 M 映射的可配置步骤**（`steps` 数组 `type=built_in`、`enabled=true` 的条目，`ref_file.multi`）：`design_traceability`（M-3a）/ `design_review`（M-3b）/ `cleanup`（cleanup 节）
-  - **执行计划 steps 数组含该 `config_key`、`type=built_in`、`enabled=true` 的条目** → 从条目 `ref_file.multi` 字段取指令文件（动态路径解析参见 SKILL.md Reference文件路径解析章节）并 Read，按其中指令执行；强制位（必经关卡/禁止主会话/最后阶段禁止跳过）随条目启用而生效
-  - **执行计划不含该 `config_key` 的启用内置条目** → 该 M 阶段/步骤跳过，**不 Read 指令文件**（内容不进上下文），直接进入下一 M 阶段；强制位（必经关卡/禁止主会话/最后阶段禁止跳过）随条目未启用而豁免
-- **无 M 映射的主会话可配置步骤**（与单仓同一机制、同一执行计划条目，`ref_file` 为单多仓通用文件）：`version_check`（M-1 之前执行）/ `fetch_rules`（M-1 之前执行，B 档双层语义：仅控 code-rule 拉取，GATE 不受控）/ `read_similar`（M-2 之前执行）/ `expert_experience`（M-2 之前执行）/ `skill_consumption`（Phase 9，M-2 全部仓完成及通用插槽执行完毕后，由主会话聚合执行一次，默认关闭）。启用判断同单仓
+- **有 M 映射的可配置步骤**（`steps` 数组 `type=built_in` 条目，`ref_file.multi`）：`design_traceability`（M-3a）/ `design_review`（M-3b）/ `cleanup`（cleanup 节）
+  - **执行计划 steps 数组含该 `config_key` 条目** → 从条目 `ref_file.multi` 字段取指令文件（动态路径解析参见 SKILL.md Reference文件路径解析章节）并 Read，按其中指令执行；强制位（必经关卡/禁止主会话/最后阶段禁止跳过）随条目存在而生效
+  - **执行计划不含该 `config_key` 条目** → 该 M 阶段/步骤跳过，**不 Read 指令文件**（内容不进上下文），直接进入下一 M 阶段；强制位（必经关卡/禁止主会话/最后阶段禁止跳过）随条目缺失而豁免
+- **无 M 映射的主会话可配置步骤**（与单仓同一机制、同一执行计划条目，`ref_file` 为单多仓通用文件）：`version_check`（M-1 之前执行）/ `fetch_rules`（M-1 之前执行，B 档双层语义：仅控 code-rule 拉取，GATE 不受控）/ `read_similar`（M-2 之前执行）/ `expert_experience`（M-2 之前执行）/ `skill_consumption`（Phase 9，M-2 全部仓完成及通用插槽执行完毕后，由主会话聚合执行一次，默认关闭）。存在性判断同单仓
 - **编排点插槽**（`orchestration_points` 对象）：`post-rule-fetch` / `post-gather-context` / `post-code-understanding` / `pre-generate` / `post-generate` / `post-traceability` / `post-design-review` / `post-cleanup`
   - **对应插槽数组含条目** → 按条目 `type` 执行（`reference`：Read `file` 字段指令文件并执行；`skill`：调用 `skill` 字段指定 skill，`run_mode=subagent` 时 spawn 独立子代理）
   - **对应插槽数组为空** → 跳过，指令文件不加载，直接进入下一阶段
@@ -98,20 +98,30 @@
 
 ### M-3a: Phase 10 — cross-doc-checker L2/L3 追溯验证 **[可配置: design_traceability]**
 
-> 仅当执行计划 `steps` 含 `config_key=design_traceability`、`type=built_in`、`enabled=true` 的条目时，进入 M-3a 前从该条目 `ref_file.multi` 动态解析并 Read 指令文件（路径解析见 SKILL.md）。没有启用条目时跳过且不加载文件；启用条目的路径缺失或文件不可读时停止并报告，禁止自行改用其他执行方式。
+<!-- GATE:REF references/design-traceability-multi.md -->
+**MANDATORY GATE（`design_traceability` 开启时生效）**: 进入 M-3a 前必须先 Read 本SKILL所在目录下的 `references/design-traceability-multi.md`（M-3a 完整执行指令：subagent 强制、子代理任务描述模板、L2/L3 分层验证、3轮自动修复循环、ESCALATE升级、主会话后处理、并发≤3、衔接豁免）。
+绝对路径 = config_dir / 'skills/core-design/references/design-traceability-multi.md'（动态路径解析参见 SKILL.md Reference文件路径解析章节）。
+文件不存在时 MUST STOP，禁止降级为主会话直接执行追溯验证。
+读取后输出: "GATE PASSED: references/design-traceability-multi.md loaded"。
+<!-- /GATE:REF -->
 
 **Replaces**: 单仓 Phase 10 design-traceability
 **Input**: 各仓 delta_design.md、tasks.md、delta_test_design.md
 **同步/异步**: sync
 
-**Execution**: 按该启用条目 `ref_file.multi` 中的完整指令执行。
+**Execution**: 完整执行指令（subagent强制、子代理任务描述模板、L2→L3分层验证、3轮自动修复循环、ESCALATE升级、主会话后处理含降级策略、并发上限3分批启动、衔接豁免）见 **references/design-traceability-multi.md**（本 M 阶段唯一执行权威）。
 
 **Output**: 各仓追溯验证报告（PASSED/FIXED/ESCALATE + 用户决策记录）
 **Checkpoint**: 所有涉及仓的 L2/L3 追溯验证已完成
 
 ### M-3b: Phase 11 — design-doc-reviewer 审查 **[可配置: design_review]**
 
-> 仅当执行计划 `steps` 含 `config_key=design_review`、`type=built_in`、`enabled=true` 的条目时，进入 M-3b 前从该条目 `ref_file.multi` 动态解析并 Read 指令文件（路径解析见 SKILL.md）。没有启用条目时跳过且不加载文件；启用条目的路径缺失或文件不可读时停止并报告，禁止自行改用其他执行方式。
+<!-- GATE:REF references/design-review-multi.md -->
+**MANDATORY GATE（`design_review` 开启时生效）**: 进入 M-3b 前必须先 Read 本SKILL所在目录下的 `references/design-review-multi.md`（M-3b 完整执行指令：subagent强制、子代理任务描述模板、design-doc-reviewer审查维度、3轮自动修复循环、ESCALATE升级、主会话后处理、M-3a→M-3b依赖豁免、衔接豁免）。
+绝对路径 = config_dir / 'skills/core-design/references/design-review-multi.md'（动态路径解析参见 SKILL.md Reference文件路径解析章节）。
+文件不存在时 MUST STOP，禁止降级为主会话直接执行文档审查。
+读取后输出: "GATE PASSED: references/design-review-multi.md loaded"。
+<!-- /GATE:REF -->
 
 **Replaces**: 单仓 Phase 11 design-review
 **Input**: 各仓 delta_design.md、delta_test_design.md、tasks.md
@@ -119,7 +129,7 @@
 
 **【强制前置】M-3a（cross-doc-checker L2/L3）必须全部通过后才能执行M-3b** — 追溯链验证不通过时，design-doc-reviewer审查无意义。**例外**：`design_traceability` 关闭时 M-3a 被跳过，Phase 9 完成或跳过后进入 M-3b（"M-3a 全过后才执行 M-3b"依赖随 `design_traceability` 关闭豁免）。
 
-**Execution**: 按该启用条目 `ref_file.multi` 中的完整指令执行。
+**Execution**: 完整执行指令（subagent强制、子代理任务描述模板、审查维度、3轮自动修复循环、ESCALATE升级、主会话后处理含降级策略、并发上限3分批启动、衔接豁免）见 **references/design-review-multi.md**（本 M 阶段唯一执行权威）。
 
 **Output**: 各仓审查报告（PASSED/FIXED/ESCALATE + 用户决策记录）
 **Checkpoint**: 所有涉及仓的 design-doc-reviewer 审查已完成
@@ -151,15 +161,20 @@ d. **决策结果记录**：记录用户决策到变更目录的审查报告中
 ## cleanup: 清理临时文件（多仓模式） **[可配置: cleanup]**
 
 > 本步骤为可配置步骤。执行与否以执行计划为准（见文件头部"可配置步骤与编排点"）：
-> - **执行计划 steps 数组含 `config_key=cleanup`、`type=built_in`、`enabled=true` 的条目** → 读取其 `ref_file.multi` 指令文件并执行，本阶段完整指令见该文件
+> - **执行计划 steps 数组含 `config_key=cleanup` 条目** → 读取其 `ref_file.multi` 指令文件并执行，本阶段完整指令见该文件
 > - **执行计划不含本步骤** → 跳过，指令文件不加载，**"最后阶段禁止跳过"强制位同步豁免**；需显式记录"cleanup 已关闭，临时文件残留"后输出执行总结并宣布流程完毕（残留由用户或后续人工处理）
 
-> 仅当执行计划 `steps` 含 `config_key=cleanup`、`type=built_in`、`enabled=true` 的条目时，进入 cleanup 前从该条目 `ref_file.multi` 动态解析并 Read 指令文件（路径解析见 SKILL.md）。没有启用条目时跳过且不加载文件；启用条目的路径缺失或文件不可读时停止并报告，禁止自行改用其他执行方式。
+<!-- GATE:REF references/cleanup-multi.md -->
+**MANDATORY GATE（`cleanup` 开启时生效）**: 进入 cleanup 前必须先 Read 本SKILL所在目录下的 `references/cleanup-multi.md`（cleanup 完整执行指令：项目级清理清单 + 各仓级清理清单 + 跨阶段引用文件保留列表 + 清理验证 + 执行时机 + 关闭语义）。
+绝对路径 = config_dir / 'skills/core-design/references/cleanup-multi.md'（动态路径解析参见 SKILL.md Reference文件路径解析章节）。
+文件不存在时 MUST STOP，禁止降级为主会话直接执行清理。
+读取后输出: "GATE PASSED: references/cleanup-multi.md loaded"。
+<!-- /GATE:REF -->
 
 **Replaces**: 单仓 Phase 12 cleanup（多仓模式下清理范围扩大到各仓变更目录）
 **Input**: 各仓变更目录 + 项目级变更目录
 
-**Execution**: 按该启用条目 `ref_file.multi` 中的完整指令执行。
+**Execution**: 完整执行指令（项目级清理：design.md/clarification_summary.json/drafts/shared_context.md/impl_questions_for_design.json/downloads/；各仓级清理：各仓 downloads/ 子目录；跨阶段引用文件保留：repo_assignments.json/cross_repo_contracts.json；清理验证；执行时机；关闭语义）见 **references/cleanup-multi.md**（本阶段唯一执行权威）。
 
 **Output**: 项目级 + 各仓级变更目录已清理（仅保留核心交付物和跨阶段引用文件）
 **Checkpoint**: 可清理文件已删除；禁止删除列表中的文件全部保留

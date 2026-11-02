@@ -1,6 +1,6 @@
 # Step 11: Gate-1 L4 实现追溯验证（单仓模式指令）
 
-> 本文件为可配置步骤 `l4_review` 的指令文件（单仓版）。仅在执行计划 `steps` 含 `config_key=l4_review`、`type=built_in`、`enabled=true` 的条目时，由骨架读取该条目的 `ref_file.single` / `ref_file.multi` 后执行。
+> 本文件为可配置步骤 `l4_review` 的指令文件（单仓版）。仅在执行计划含 `key=l4_review` 条目时被 Read。
 
 **【执行模式】**: subagent（强制）— 此步骤必须通过子代理执行，禁止主会话直接执行
 **加载技能**: ["cross-doc-checker"]
