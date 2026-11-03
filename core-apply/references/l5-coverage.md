@@ -1,4 +1,4 @@
-# Step 14: Gate-2 L5 UT覆盖度验证（单仓模式指令）
+# Step 13: Gate-2 L5 UT覆盖度验证（单仓模式指令）
 
 > 本文件为可配置步骤 `l5_coverage` 的指令文件（单仓版）。仅在执行计划含 `key=l5_coverage` 条目时被 Read。
 > **依赖规则**：`l5_coverage` 依赖 `unit_test`。若 `unit_test` 关闭，本步骤自动降级，本文件不被 Read。
@@ -12,9 +12,9 @@
 **同步/异步**: sync
 
 **【强制】进入此门控检查时，必须向用户输出：**
-"## Step 14: L5 UT覆盖度验证 — UT代码已生成，正在验证UT与delta_test_design.md的覆盖度..."
+"## Step 13: L5 UT覆盖度验证 — UT代码已生成，正在验证UT与delta_test_design.md的覆盖度..."
 
-**【强制】此门控检查是 Step 13（单元测试）完成后的必经验证。禁止跳过此步骤直接结束流程。**
+**【强制】此门控检查是 Step 12（单元测试）完成后的必经验证。禁止跳过此步骤直接结束流程。**
 
 **前置条件**：如果 `delta_test_design.md` 不存在，则跳过此门控检查，直接结束流程。
 
@@ -29,7 +29,7 @@ Skill tool: cross-doc-checker <change-name> --layer L5
 - **验证重点**：UT是否存在空壳/恒真断言（CHECK-R5-TESTSHELL）、delta_test_design.md场景是否被UT功能覆盖（CHECK-R13-TC-SEMANTIC-COVERAGE正向+反向）、UT断言是否与预期结果一致（CHECK-R13-TC-ASSERTION）、UT是否实际调用被测业务代码（CHECK-R13-TC-CALLTARGET）、业务代码公共接口是否有测试覆盖（CHECK-R13-PUBLIC-TESTED）
 - **说明**：L5执行5项UT覆盖度与代码关联性相关CHECK-ID（含TESTSHELL测试空壳检测），TC-SEMANTIC-COVERAGE 的命中方式（语义匹配 / ID-TRACEABLE）按顶部测试策略分支执行
 - **强制要求**：**不得自行执行Grep/Read绕过Skill tool做L5验证** — 必须且只能通过 Skill tool 调用 cross-doc-checker。自行执行的L5验证结果无效
-- **结果校验**：Skill tool 执行完成后，必须检查输出中是否包含所有L5 CHECK-ID（CHECK-R5-TESTSHELL, CHECK-R13-TC-SEMANTIC-COVERAGE, CHECK-R13-TC-ASSERTION, CHECK-R13-TC-CALLTARGET, CHECK-R13-PUBLIC-TESTED）。缺少任何CHECK-ID的输出表示 cross-doc-checker 未完整执行，必须重新调用
+- **结果校验**：Skill tool 执行完成后，必须检查输出中是否包含所有L5 CHECK-ID（CHECK-R5-TESTSHELL, CHECK-R13-TC-SEMANTIC-COVERAGE, CHECK-R13-TC-ASSERTION, CHECK-R13-TC-CALLTARGET, CHECK-R13-PUBLIC-TESTED）。缺少任何CHECK-ID的输出表示 cross-doc-checker 未完整执行，必须重新调用。**首轮完整审查**要求全部 CHECK-ID 出现；**`--recheck` 复审轮**只要求复审清单项 + Stage 2 项出现，其余项须以 `SKIPPED | NOT_IN_RECHECK` 出现（同样视为已处理）
 - **失败处理**：UT覆盖度验证失败 → **必须自动修复**后重新执行L5验证
   - **自动修复循环（最多3轮）**：
     1. 读取cross-doc-checker输出的findings列表
@@ -40,7 +40,7 @@ Skill tool: cross-doc-checker <change-name> --layer L5
        - 【实现一致性类】UT断言与预期结果不一致（CHECK-R13-TC-ASSERTION FAIL）→ 修正UT断言使其与delta_test_design.md一致
        - 【实现一致性类】业务代码public函数无测试覆盖（CHECK-R13-PUBLIC-TESTED FAIL）→ 为该函数生成UT
        - 【文档保真类】设计文档中引用的函数名与实际代码不一致（如设计写validateScaleRequest但实际是doCustomSelectorScale）→ **以实际代码为准更新设计文档**
-    3. 修复完成后，**必须重新调用** Skill tool: cross-doc-checker <change-name> --layer L5
+    3. 修复完成后，**必须重新调用** Skill tool: cross-doc-checker <change-name> --layer L5 --recheck <本轮FAIL的CHECK-ID,...>（增量复审只重跑失败项）
     4. 如果3轮后仍有FAIL → 暂停流程，返回主会话由主会话上报用户处理
   - **WARNING级finding处理**：WARNING不阻塞流程，但**应当修复**。修复后无需重新执行L5验证
   - **禁止**：发现FAIL后仅报告问题不修复，或跳过修复直接标记完成
