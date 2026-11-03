@@ -319,7 +319,7 @@ class FlowReferenceConsistencyTests(unittest.TestCase):
                         self.assertIn(f"{consumption_phase} 完成或跳过后", transition)
         reference = builtins["design_traceability"]["ref_file"]["multi"]
         text = (ROOT / "core-design" / reference).read_text(encoding="utf-8")
-        self.assertIn(f"通用 `post-generate` 插槽执行完毕且 {consumption_phase} 完成或按计划跳过后", text)
+        self.assertIn(f"M-2 全部仓完成且 {consumption_phase} 完成或按计划跳过后", text)
 
 
 if __name__ == "__main__":
