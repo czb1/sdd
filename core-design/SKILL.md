@@ -96,8 +96,6 @@ sys.exit(result.returncode)
   - **`"config_initialized": true`**（首次自动生成配置文件）→ 在执行总结中添加一行提示（仅首次，`false` 时静默跳过）："已生成流程编排配置文件 `~/.corespec/flow-config.json`（如需启停步骤或添加自定义步骤，直接编辑该文件，下次运行自动生效；说明见 `~/.corespec/flow-config-guide.md`）。"
   - **`"template_initialized": true`**（首次自动初始化模板）→ 在执行总结中添加一行提示："已初始化可编辑的产物模板（如需自定义章节，编辑 `~/.corespec/` 下的模板文件，执行 `python -m core_templates --guide` 查看使用指南）。"——**仅首次出现时告知，`false` 时静默跳过**
 
-流程配置无需交互确认；启用任务 Skill 消费后，候选选择、安装与冲突处理等业务确认仍按消费指令执行。
-
 **计划解析成功后必须创建 task 任务（MANDATORY）**：进入主流程前，必须使用 **TaskCreate 工具**创建 task 任务清单：
 - **先创建当前阶段即可确定的任务**：
   - 固定主流程步骤：构建执行计划 → Phase 1（版本检查，`version_check` 关闭时跳过）→ Phase 2（获取规范，`fetch_rules` 关闭时跳过 GATE 仍执行）→ Phase 3（收集上下文）→ Phase 4（代码理解）→ Phase 8（生成设计文档）各建一个 task
@@ -113,8 +111,6 @@ sys.exit(result.returncode)
 下文“执行计划含条目”指存在启用条目：内置步骤须 `enabled=true`，自定义条目不得为 `enabled=false`。`steps` 是完整步骤视图，可能保留 `enabled=false` 的关闭项；不能仅凭键存在就执行。
 
 - 执行计划是唯一权威。内置步骤只从 `steps` 中查找 `type=built_in`、`enabled=true` 且 `config_key` 匹配的条目，读取其 `ref_file.single` / `ref_file.multi`；没有启用条目时跳过，不加载指令文件。
-- 自定义步骤只从 `orchestration_points` 对应插槽读取，按计划顺序（`order` 升序）串行执行。`type=reference` 时 Read 条目的 `file` 并执行；`type=skill` 时调用条目的 `skill`，`run_mode=subagent` 时启动独立子代理。显式 `enabled=false` 的条目跳过；插槽为空时不加载任何自定义指令。
-- 自定义步骤的声明由 `flow_config.py` 的 `TEMPLATE_JSONC` 承载；配置中整块注释表示关闭，取消整块注释表示开启，下次运行自动重建执行计划后生效。骨架不指定自定义步骤名称或指令文件，不根据已有产物、输入参数或其他步骤推断启用。
 - 按下表在阶段边界调度插槽；多仓的 change 级插槽由主会话聚合执行一次，子代理不重复调度。某个内置步骤关闭只跳过该步骤，仍检查其后插槽，由计划中的依赖结果决定各自定义条目是否执行。
 - 计划不可读取或结构无效时停止并报告；已启用条目的指令文件缺失时停止并报告，不从配置源重建或静默跳过。
 

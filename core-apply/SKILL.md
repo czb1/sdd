@@ -1,6 +1,6 @@
 ---
 name: core-apply
-description: Implement tasks from an CoreSpec change. Use when the user wants to start implementing, continue implementation, or work through tasks; optionally consume task-linked Skills and experiences when enabled in the execution plan (disabled by default)
+description: Implement tasks from an CoreSpec change. Use when the user wants to start implementing, continue implementation, or work through tasks.
 license: MIT
 compatibility: Works without npm - uses Python scripts directly
 metadata:
@@ -89,15 +89,13 @@ sys.exit(result.returncode)
   - **`"template_initialized": true`**（首次自动初始化模板）→ 在执行总结中添加一行提示："已初始化可编辑的产物模板（如需自定义章节，编辑 `~/.corespec/` 下的模板文件，执行 `python -m core_templates --guide` 查看使用指南）。"——**仅首次出现时告知，`false` 时静默跳过**
 - 用户想调整步骤（启停内置步骤 / 添加自定义步骤）→ 直接编辑 `~/.corespec/flow-config.json`，下次运行自动生效（无需任何命令或确认）
 
-流程配置无需交互确认；启用任务 Skill 消费后，候选选择、安装与冲突处理等业务确认仍按消费指令执行。
-
 **计划解析成功后必须创建 task 任务（MANDATORY）**：进入主流程前，必须使用 **TaskCreate 工具**创建 task 任务清单：
 - **先创建当前阶段即可确定的任务**：
   - 固定主流程步骤：Step 0（构建执行计划）→ Step 1（版本检查）→ Step 2（选择 change）→ Step 3（多仓检测与路由）→ Step 15（完成展示）各建一个 task
   - 单仓模式：按执行计划 `steps` 数组，为每个启用的可配置内置步骤（`config_key` = `version_check`/`show_progress`/`skill_consumption`/`l4_review`/`code_review`/`unit_test`/`l5_coverage`/`completion_report`）创建 task；关闭的步骤不创建
-  - 多仓模式：为启用的 Step 9 准备步骤创建 task，再按执行计划对应 M 阶段（M-3 l4_review / M-4 code_review / M-5 unit_test / M-6 l5_coverage）创建 task；关闭的 M 不创建
+  - 多仓模式：为启用的 M-1a（任务 Skill 准备）创建 task，再按执行计划对应 M 阶段（M-3 l4_review / M-4 code_review / M-5 unit_test / M-6 l5_coverage）创建 task；关闭的 M 不创建
   - 每个启用的编排点插槽条目（`orchestration_points` 中的 reference/skill 步骤）同样创建 task
-- **Step 3 路由判定后必须补充创建分支 task（MANDATORY）**：执行计划在 Step 0 构建时尚未运行 Step 3 多仓检测，单仓/多仓分支无法在计划构建时预知，因此 **Step 3 输出路由结果后、进入主流程主体前，必须立即用 TaskCreate 补齐分支任务**：单仓 → Step 4（检查 change 状态）→ Step 5（获取执行指令）→ Step 6（读取上下文文件）→ Step 7（加载代码生成原则）→ Step 8（展示进度）→ Step 9（任务 Skill 准备，执行计划含启用条目才创建）→ Step 10（代码生成任务）各建一个 task；多仓 → 按 references/multi-repo.md 的 M-1~M-6 各建一个 task，并为启用的 Step 9 主会话准备补建 task（M 阶段与执行计划启停对应：关闭的 M 不创建）。**禁止跳过 Step 3 后的分支补建**——否则任务清单缺失主体执行环节，用户看不到后续要执行什么
+- **Step 3 路由判定后必须补充创建分支 task（MANDATORY）**：执行计划在 Step 0 构建时尚未运行 Step 3 多仓检测，单仓/多仓分支无法在计划构建时预知，因此 **Step 3 输出路由结果后、进入主流程主体前，必须立即用 TaskCreate 补齐分支任务**：单仓 → Step 4（检查 change 状态）→ Step 5（获取执行指令）→ Step 6（读取上下文文件）→ Step 7（加载代码生成原则）→ Step 8（展示进度）→ Step 9（任务 Skill 准备，执行计划含启用条目才创建）→ Step 10（代码生成任务）各建一个 task；多仓 → 按 references/multi-repo.md 的 M-1~M-6 各建一个 task，并为启用的 M-1a 补建 task（M 阶段与执行计划启停对应：关闭的 M 不创建）。**禁止跳过 Step 3 后的分支补建**——否则任务清单缺失主体执行环节，用户看不到后续要执行什么
 - task 描述注明对应步骤/config_key/M 阶段与启停状态；Step 10 任务循环与后续可配置步骤执行时，以这些 task 跟踪进度
 - 补建时复用已存在的同一步骤 task，只创建缺失项，禁止重复创建。
 - **禁止跳过 TaskCreate**（用户可直观看到哪些步骤要执行、哪些已关闭）
@@ -105,13 +103,10 @@ sys.exit(result.returncode)
 **执行期规则**：
 
 下文“执行计划含条目”指存在启用条目：内置步骤须 `enabled=true`，自定义条目不得为 `enabled=false`。`steps` 是完整步骤视图，可能保留 `enabled=false` 的关闭项；不能仅凭键存在就执行。
-- 执行计划是**唯一权威**：后续每个编排点/可配置步骤，查 `execution-plan-core-apply.json` 的 `steps` 数组（主流程步骤，含 `config_key` 的可配置内置步骤）与 `orchestration_points` 对象（5 个插槽子环节）——**有条目则执行，无条目则直接进入下一步**
+- 执行计划是**唯一权威**：后续每个编排点/可配置步骤，查 `execution-plan-core-apply.json` 的 `steps` 数组（主流程步骤，含 `config_key` 的可配置内置步骤）与 `orchestration_points` 对象（5 个插槽子环节）；多仓任务消费按 M-1a 的片段控制——**有条目则执行，无条目则直接进入下一步**
 - 计划 `orchestration_points` 含 `pre-codegen` 插槽条目 → 每个 task 在 10.3 与 10.4 之间执行该条目指令；不含 → 跳过（指令文件不加载，内容不进上下文）
 - 计划 `orchestration_points` 含 `post-codegen`/`post-l4`/`post-review`/`post-ut` 插槽条目 → 对应 change 级编排点执行；不含 → 跳过
-- 计划 `steps` 数组含 `config_key=version_check`/`show_progress`/`skill_consumption`/`l4_review`/`code_review`/`unit_test`/`l5_coverage`/`completion_report`（`type=built_in`，`enabled=true`）条目 → 执行对应 Step 的指令文件（`ref_file.single` 单仓 / `ref_file.multi` 多仓）；不含 → 该步骤跳过，**不 Read 指令文件**
-- 自定义步骤只由 `orchestration_points` 调度，按计划顺序（`order` 升序）串行执行：`reference` 从条目的 `file` 读取指令，`skill` 调用条目的 `skill`（`run_mode=subagent` 时启动独立子代理）。显式 `enabled=false` 的条目跳过；骨架不指定自定义步骤名称或指令文件。
-- 自定义声明由 `flow_config.py` 的 `TEMPLATE_JSONC` 承载。配置中整块注释表示关闭，取消整块注释表示开启，下次运行自动重建执行计划后生效；已有产物或其他条目不能隐式开启步骤。
-- 有待办 1.x 任务且 `skill_consumption` 内置步骤启用时，主会话在单仓 Step 9 / 多仓 M-2 代码生成代理启动前，读取其 `ref_file.single` / `ref_file.multi`，完成一次准备；任务级动作在 10.3.4 执行。子代理从根计划读取同一内置条目的启用状态并加载指令，准备结果随任务上下文传入，新增用户决策事项返回主会话汇总。
+- 计划 `steps` 数组含 `config_key=version_check`/`show_progress`/`skill_consumption`/`l4_review`/`code_review`/`unit_test`/`l5_coverage`/`completion_report`（`type=built_in`，`enabled=true`）条目 → 执行对应 Step 的指令文件（`ref_file.single` 单仓 / `ref_file.multi` 多仓，任务消费的多仓入口见 M-1a）；不含 → 该步骤跳过，**不 Read 指令文件**
 - 内置步骤关闭不等于关闭其后插槽，仍按计划调度有效条目；计划 / 片段无效或已启用条目的指令文件缺失时停止并报告，不自行重建、猜测启用或静默跳过。
 - `skipped-core-apply.json` 只读：Step 15 完成展示与下游 core-* 读取，agent 全程不写
 
@@ -171,10 +166,11 @@ Always announce: "Using change: <name>" and how to override (e.g., `/core-apply 
    3. 等待用户指示，**禁止自行决定继续执行**
    读取后输出: "GATE PASSED: references/multi-repo.md loaded"。
    <!-- /GATE:REF -->
-4. **路由判定后必须补充创建分支 task（MANDATORY）**：执行计划在 Step 0 构建时尚未运行本步多仓检测，单仓/多仓分支任务无法在计划构建时创建。因此**路由结果输出后、进入主流程主体前，必须立即用 TaskCreate 补齐分支任务**（单仓 → Step 4~10 各一个 task；多仓 → M-1~M-6 各一个 task，关闭的 M 不创建）。禁止跳过。
-5. 按 references/multi-repo.md 执行 M-1~M-6（**跳过Step 4~10 + 门控检查**，M-2内部子代理按拓扑分批并行读取context files和执行代码生成；M-3~M-6 为**可配置步骤**，执行与否以执行计划为准——含对应 `key` 条目则按 `ref_file.multi` 指令文件执行，不含则跳过，详见 multi-repo.md 头部"可配置步骤与编排点"）
+4. **路由判定后必须补充创建分支 task（MANDATORY）**：执行计划在 Step 0 构建时尚未运行本步多仓检测，单仓/多仓分支任务无法在计划构建时创建。因此**路由结果输出后、进入主流程主体前，必须立即用 TaskCreate 补齐分支任务**（单仓 → Step 4~10 各一个 task；多仓 → M-1、M-1a、M-2~M-6 各一个 task，关闭的 M 不创建）。禁止跳过。
+5. 按 references/multi-repo.md 执行 M-1 → M-1a → M-2~M-6（**跳过Step 4~10 + 门控检查**，M-2内部子代理按拓扑分批并行读取context files和执行代码生成；M-3~M-6 为**可配置步骤**，执行与否以执行计划为准——含对应 `key` 条目则按 `ref_file.multi` 指令文件执行，不含则跳过，详见 multi-repo.md 头部"可配置步骤与编排点"）
    - M-1: 多仓检测（读取repo_assignments.json，involved_repos>1 = 多仓）
-   - M-2: 按仓拓扑分批 + 子代理并行代码生成（替代Step 4~10）
+   - M-1a: 任务 Skill 准备（主会话汇总各仓待办）**[可配置: skill_consumption]**
+   - M-2: 按仓拓扑分批 + 子代理并行代码生成（替代Step 4~8及Step 10）
    - M-3: 各仓L4实现追溯验证（subagent并行，替代门控1 L4）**[可配置: l4_review]**
    - M-4: 各仓Code Review（subagent并行，替代Code Review环节）**[可配置: code_review]**
    - M-5: 各仓单元测试（subagent并行，替代UT环节）**[可配置: unit_test]**
@@ -182,9 +178,9 @@ Always announce: "Using change: <name>" and how to override (e.g., `/core-apply 
 
 **【多仓可配置步骤执行规则】**（与单仓 Step 11-14 同一权威，执行计划是唯一数据源）：
 - 可配置步骤（M-3~M-6）：查 `execution-plan-core-apply.json` 的 `steps` 数组。含 `config_key=l4_review`/`code_review`/`unit_test`/`l5_coverage`（type=built_in）条目 → 从条目 `ref_file.multi` 取指令文件并 Read 执行；不含 → 跳过，**不 Read 指令文件**（内容不进上下文），直接进入下一 M 阶段
-- 主会话执行的可配置步骤（不映射 M 阶段，与单仓同一机制、同一执行计划条目）：`version_check`（Step 1，M-1 之前）/ `show_progress`（Step 8，M-2 之前）/ `skill_consumption`（Step 9，M-2 之前主会话准备、M-2 内每任务消费，默认关闭）/ `completion_report`（Step 15，M-6 之后 on-completion）。这些步骤的 `ref_file.multi` 为单多仓通用文件，存在性判断同单仓
+- 主会话执行的可配置步骤（不映射 M 阶段，与单仓同一机制、同一执行计划条目）：`version_check`（Step 1，M-1 之前）/ `show_progress`（Step 8，M-2 之前）/ `completion_report`（Step 15，M-6 之后 on-completion）。这些步骤的 `ref_file.multi` 为单多仓通用文件，存在性判断同单仓
 - 编排点插槽（多仓下同样查执行计划 `orchestration_points` 对象）：`pre-codegen`（M-2 子代理内 task 级，10.3 与 10.4 之间）/ `post-codegen`（M-2 后）/ `post-l4`（M-3 后）/ `post-review`（M-4 后）/ `post-ut`（M-5 后）。对应插槽数组含条目 → 按条目 `type` 执行（reference 型 Read `file` 指令文件 / skill 型调用 skill，`run_mode=subagent` 时 spawn 独立子代理）；不含 → 跳过，指令文件不加载
-- **多仓子代理的计划输入**：Step 0 生成 `execution-plan-fragment-core-apply-<repo>.json` 片段文件（`main.py flow-config --fragment --repo <repo> --repo-cwd <路径> --project-root <根项目绝对路径>`，内容为 `repo`/`repo_cwd`/`plan_path`/`orchestration_points` 五插槽；**必须显式传 `--project-root`**，否则以 cwd 解析根项目，多仓子代理 cwd 是各仓目录时片段会写到错误位置；`--fragment` 无论是否带 `--json` 都落盘片段文件，`--json` 仅额外在 stdout 输出一份），M-2 子代理通过输入文件接收本仓片段，按片段中插槽条目执行（pre-codegen 任务级、post-codegen 生成完成后），不在插槽的编排点不执行；所有仓共享同一根执行计划。子代理同时读取片段 `plan_path` 指向的根计划，仅从其 `steps` 判断内置步骤启停；片段不含 `steps`，不得用插槽条目推断内置步骤状态
+- **多仓子代理的计划输入**：M-1 确定仓列表后，主会话用 `main.py flow-config --fragment --skill core-apply --repo <repo> --repo-cwd <仓绝对路径> --project-root <根项目绝对路径>` 生成各仓片段（加 `--json` 可同时查看 JSON 输出）。M-1a 与 M-2 从本仓片段的 `built_in_steps.skill_consumption` 判断消费环节启停；通用插槽从 `orchestration_points` 读取。子代理不读取根计划，`plan_path` 仅记录片段来源。
 - `l5_coverage` 依赖 `unit_test`：UT 关闭 → L5 自动降级（disabled 区 `dependency_downgraded`），两指令文件均不 Read
 - `skipped-core-apply.json` 只读：Step 15 on-completion 展示可配置步骤状态时读取，agent 全程不写
 
@@ -197,7 +193,7 @@ Always announce: "Using change: <name>" and how to override (e.g., `/core-apply 
 - **M-2 子代理代码生成循环对象仅限各仓 tasks.md `## 代码生成任务` 章节（1.x）**；`## Code Review 任务`（2.x）属 M-4（`code_review`）、`## 单元测试任务`（3.x）属 M-5（`unit_test`），对应 M 阶段关闭时整章节跳过，**禁止**在 M-2 代码生成循环中执行（与单仓 Step 10 同一边界约束）
 - Step 7 (Load code-gen-principles) → M-2子代理内部读取（作为输入文件注入）
 - Step 8 (Show progress) → M-2 之前主会话执行（show_progress 默认关闭，执行计划含条目才执行）
-- Step 9 (任务 Skill 准备与消费) → M-2 之前主会话准备一次、M-2 子代理内每任务执行（仅启用时）
+- Step 9 (任务 Skill 准备) → 多仓独立环节 M-1a；M-2 按本仓片段使用已准备的任务上下文
 - Step 10 (Implement tasks) → M-2子代理按拓扑分批并行代码生成
 - Step 11 (Gate-1 L4) → M-3
 - Step 12 (Code Review) → M-4
@@ -284,11 +280,10 @@ The files depend on the schema being used:
 > - **执行计划 steps 数组含 `config_key=show_progress`（type=built_in）条目** → 从该条目 `ref_file.single` 字段取指令文件（动态路径解析参见本SKILL Reference文件路径解析章节）并 Read，按其中指令执行
 > - **执行计划不含本步骤** → 直接进入下一步（指令文件不加载，内容不进上下文）
 
-### 9. 任务 Skill 准备与消费 [可配置: skill_consumption]
+### 9. 任务 Skill 准备 [可配置: skill_consumption]
 
-> 本步骤默认关闭。仅当根执行计划 `steps` 含 `config_key=skill_consumption`、`type=built_in`、`enabled=true` 条目时，Read 该条目的 `ref_file.single`，完成主会话准备；每任务动作按 Step 10 的独立内置检查点执行。
+> 仅当执行计划 `steps` 含 `config_key=skill_consumption`、`type=built_in`、`enabled=true` 条目时，Read 该条目的 `ref_file.single`，一次完成待办 1.x 任务的关联检查、必要的补齐与批量确认，并准备各任务上下文，供 Step 10 使用。
 > 没有启用条目 → 跳过，不加载指令文件，继续 Step 10。无待办 1.x 任务时无需准备。
-> 多仓由 M-2 启动前的主会话读取 `ref_file.multi` 执行一次准备，子代理按根计划执行每任务动作。
 
 ### 10. Implement code-generation tasks (loop until done or blocked, tasks.md `## 代码生成任务` section only)
 
@@ -299,7 +294,7 @@ The files depend on the schema being used:
 读取后输出: "GATE PASSED: references/code-generation-procedure.md loaded"。
 <!-- /GATE:REF -->
 
-**执行方式**：按 `references/code-generation-procedure.md` 的主循环执行每个待办任务——每个 task 依次执行 10.1 代码理解 → 10.2 锚点解析 → 10.3 分阶段展示 → 10.3.4 内置每任务检查点 → 10.3.5 通用插槽 → 10.4 原则自检 → 10.5 代码生成，标记任务完成 `- [ ]` → `- [x]` 后进入下一任务。10.5 按测试策略分 test-after/tdd 两个互斥分支（读取 tasks.md 头部 `测试策略` 字段，缺省 test-after）。编排点 pre-codegen（10.3 与 10.4 之间）与 post-codegen（Step 10 之后）的判断逻辑见指令文件。
+**执行方式**：按 `references/code-generation-procedure.md` 的主循环执行每个待办任务——每个 task 依次执行 10.1 代码理解 → 10.2 锚点解析 → 10.3 分阶段展示 → 使用本轮 Step 9 已准备的当前任务上下文 → 10.3.4 通用插槽 → 10.4 原则自检 → 10.5 代码生成，标记任务完成 `- [ ]` → `- [x]` 后进入下一任务。10.5 按测试策略分 test-after/tdd 两个互斥分支（读取 tasks.md 头部 `测试策略` 字段，缺省 test-after）。编排点 pre-codegen（10.3 与 10.4 之间）与 post-codegen（Step 10 之后）的判断逻辑见指令文件。
 
 **【强制】Step 10 循环对象边界**：Step 10 只循环 tasks.md `## 代码生成任务` 章节（1.x）。tasks.md 的 `## Code Review 任务`（2.x）属 Step 12（`code_review`）、`## 单元测试任务`（3.x）属 Step 13（`unit_test`）——对应可配置步骤在执行计划 steps 数组中**不含** `config_key` 条目（已关闭）时，**禁止**在 Step 10 循环中执行这些章节的任何任务（指令文件不 Read，章节任务亦不执行）。Step 10 无待办且后续步骤全关闭 → 直接结束流程。
 

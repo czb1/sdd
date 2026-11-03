@@ -114,7 +114,8 @@ class SkillConsumptionFlowTests(unittest.TestCase):
                             self.assertEqual(entry["config_key"], "skill_consumption")
                             self.assertNotIn("skill_consumption", plan["disabled"])
                             for mode in ("single", "multi"):
-                                self.assertEqual(entry["ref_file"][mode], "references/skill-consumption.md")
+                                suffix = "-multi" if skill == "core-apply" and mode == "multi" else ""
+                                self.assertEqual(entry["ref_file"][mode], f"references/skill-consumption{suffix}.md")
                                 self.assertTrue((ROOT / skill / entry["ref_file"][mode]).is_file())
                         else:
                             self.assertNotIn("config_key", entry)
@@ -170,7 +171,7 @@ class SkillConsumptionFlowTests(unittest.TestCase):
             for path, expected in saved.items():
                 self.assertEqual(path.read_bytes(), expected)
 
-    def test_multi_repo_fragment_keeps_root_builtin_gate_and_custom_slots(self):
+    def test_multi_repo_fragment_is_sufficient_for_consumption_and_custom_slots(self):
         for enabled in (True, False):
             namespace = {"skill_consumption": enabled, "judgment_ladder": {
                 "type": "reference", "file": "references/judgment-ladder.md", "at": "pre-codegen"}}
@@ -182,10 +183,54 @@ class SkillConsumptionFlowTests(unittest.TestCase):
             self.assertEqual(fragment["plan_path"], result["plan_path"])
             self.assertNotIn("steps", fragment)
             self.assertEqual(fragment["orchestration_points"], result["plan"]["orchestration_points"])
-            root_plan = json.loads(Path(fragment["plan_path"]).read_text())
-            self.assertIs(self.entry(root_plan)["enabled"], enabled)
+            # A codegen agent receives only its fragment; no single-repo steps
+            # or root-plan read should be needed to decide what to load.
+            Path(fragment["plan_path"]).unlink()
             saved = self.project / "docs/.flow_context/execution-plan-fragment-core-apply-service-a.json"
             self.assertEqual(json.loads(saved.read_text()), fragment)
+            phase = json.loads(saved.read_text())["built_in_steps"]["skill_consumption"]
+            self.assertEqual(phase["phase"], "M-1a")
+            self.assertIs(phase["enabled"], enabled)
+            self.assertNotIn("at", phase)
+            self.assertNotIn("skill_md_step", phase)
+            if enabled:
+                self.assertEqual(phase["ref_file"], "references/skill-consumption-multi.md")
+                self.assertTrue((ROOT / "core-apply" / phase["ref_file"]).is_file())
+            else:
+                self.assertNotIn("ref_file", phase)
+
+    def test_fragment_uses_persisted_plan_until_next_rebuild(self):
+        self.config.write_text(json.dumps({"core-apply": {"skill_consumption": True}}))
+        result = self.rebuild("core-apply")
+        self.config.write_text(json.dumps({"core-apply": {"skill_consumption": False}}))
+        for repo in ("service-a", "service-b"):
+            fragment = self.command("--skill", "core-apply", "--fragment", "--repo", repo,
+                                    "--repo-cwd", str(self.project / repo))
+            self.assertEqual(fragment["repo"], repo)
+            self.assertEqual(fragment["repo_cwd"], str(self.project / repo))
+            self.assertEqual(fragment["plan_path"], result["plan_path"])
+            self.assertTrue(fragment["built_in_steps"]["skill_consumption"]["enabled"])
+        self.rebuild("core-apply")
+        fragment = self.command("--skill", "core-apply", "--fragment", "--repo", "service-a",
+                                "--repo-cwd", str(self.project / "service-a"))
+        self.assertFalse(fragment["built_in_steps"]["skill_consumption"]["enabled"])
+
+    def test_default_disabled_fragment_is_written_without_json_output(self):
+        self.rebuild("core-apply")
+        with contextlib.redirect_stdout(io.StringIO()):
+            code = flow.run_fragment("core-apply", "service-a", str(self.project / "service-a"),
+                                     str(self.project), False)
+        self.assertEqual(code, 0)
+        saved = self.project / "docs/.flow_context/execution-plan-fragment-core-apply-service-a.json"
+        self.assertEqual(json.loads(saved.read_text())["built_in_steps"], {
+            "skill_consumption": {"phase": "M-1a", "enabled": False}})
+
+    def test_other_skill_fragments_keep_their_existing_contract(self):
+        for skill in ("core-design", "core-explore", "core-init", "core-archive"):
+            self.rebuild(skill)
+            fragment = self.command("--skill", skill, "--fragment", "--repo", "service-a",
+                                    "--repo-cwd", str(self.project / "service-a"))
+            self.assertEqual(set(fragment), {"repo", "repo_cwd", "plan_path", "orchestration_points"})
 
     def test_cli_describe_reports_both_default_disabled_switches(self):
         for skill in ("core-design", "core-apply"):

@@ -2,7 +2,7 @@
 
 **Skill**: core-apply
 **Depends On**: repo_assignments.json
-**Step Mapping Authority**: M-编号与 steps.md 序号一一对应（M-1→Step3, M-2→Step4~10, M-3→Step11, M-4→Step12, M-5→Step13, M-6→Step14）
+**Step Mapping Authority**: M-编号与 steps.md 序号一一对应（M-1→Step3, M-1a→任务 Skill 准备, M-2→Step4~8及Step10, M-3→Step11, M-4→Step12, M-5→Step13, M-6→Step14）
 
 ## 可配置步骤与编排点（多仓模式）
 
@@ -12,7 +12,8 @@
   - **执行计划 steps 数组含该 `config_key` 条目** → 从条目 `ref_file.multi` 字段取指令文件（动态路径解析参见 SKILL.md Reference文件路径解析章节）并 Read，按其中指令执行
   - **执行计划不含该 `config_key` 条目** → 该步骤跳过，**不 Read 指令文件**（内容不进上下文），直接进入下一 M 阶段
   - `l5_coverage` 依赖 `unit_test`：UT 关闭则 L5 自动降级（执行计划 disabled 区标记），两文件均不 Read
-- **主会话执行的可配置步骤**（不映射 M 阶段，与单仓同一机制、同一执行计划条目）：`version_check`（Step 1，M-1 之前执行）/ `show_progress`（Step 8，M-2 之前执行，**默认关闭**，执行计划含条目才执行）/ `skill_consumption`（Step 9，M-2 之前准备、M-2 内每任务消费，默认关闭）/ `completion_report`（Step 15，M-6 之后 on-completion 执行）。从对应启用条目的 `ref_file.multi` 读取指令，启用判断同单仓
+- **主会话执行的可配置步骤**（不映射 M 阶段，与单仓同一机制、同一执行计划条目）：`version_check`（Step 1，M-1 之前执行）/ `show_progress`（Step 8，M-2 之前执行，**默认关闭**，执行计划含条目才执行）/ `completion_report`（Step 15，M-6 之后 on-completion 执行）。从对应启用条目的 `ref_file.multi` 读取指令，启用判断同单仓
+- **任务 Skill 准备**：M-1a **[可配置: skill_consumption]**，由本仓执行计划片段的 `built_in_steps.skill_consumption` 控制，默认关闭；M-2 子代理使用同一片段和 M-1a 准备结果。
 - **编排点插槽**（`orchestration_points` 对象）：`pre-codegen`（M-2 子代理内 task 级）/ `post-codegen`（M-2 后）/ `post-l4`（M-3 后）/ `post-review`（M-4 后）/ `post-ut`（M-5 后）
   - **对应插槽数组含条目** → 按条目 `type` 执行（`reference`：Read `file` 字段指令文件并执行；`skill`：调用 `skill` 字段指定 skill，`run_mode=subagent` 时 spawn 独立子代理）
   - **对应插槽数组为空** → 跳过，指令文件不加载，直接进入下一阶段
@@ -22,7 +23,7 @@
 1. repo_assignments.json 存在
 2. involved_repos >= 2
 3. 已输出 "GATE PASSED: references/multi-repo.md loaded"
-4. 各仓代码生成代理在开始生成前，必须按任务模板读取代码生成原则；主会话读取不能替代子代理的必读输入检查
+4. 各仓代码生成代理在开始生成前，必须读取代码生成原则并已输出 "GATE PASSED: references/code-gen-principles.md loaded"；读取与输出在 M-2 模板步骤 a 完成，主会话读取不能替代子代理记录
 
 ## M-1: 多仓检测
 **Replaces**: steps.md Step 3 check-status（多仓模式下status脚本基于根目录路径不适用，M-1替代为Agent直接读取各仓文件检查状态）
@@ -33,11 +34,23 @@
    - 文件不存在 -> 执行单仓流程（不报错），设置 `is_multi_repo = False`
    - 文件存在但 `involved_repos` 数量 < 1 -> 执行单仓流程（不报错），设置 `is_multi_repo = False`
 2. 多仓模式下，解析 `repo_assignments.json` 中的 `involved_repos`、`anchor_repos`、`expanded_repos`、`expansion_reason` 字段
-**Output**: is_multi_repo 标志 + involved_repos 列表
-**Checkpoint**: repo_assignments.json 已读取，多仓/单仓环境已判定
+3. 多仓模式下，为每仓生成本轮执行计划片段；即使消费关闭也须生成，供 M-2 调度通用插槽：
+   ```bash
+   main.py flow-config --fragment --json --skill core-apply --repo <repo> --repo-cwd <仓绝对路径> --project-root <根项目绝对路径>
+   ```
+   片段生成失败时停止并报告，不沿用旧片段。
+**Output**: is_multi_repo 标志 + involved_repos 列表 + 各仓执行计划片段
+**Checkpoint**: repo_assignments.json 已读取，多仓/单仓环境已判定；多仓片段已生成
+
+## M-1a: 任务 Skill 准备 **[可配置: skill_consumption]**
+
+读取各仓片段的 `built_in_steps.skill_consumption`：`phase=M-1a` 且 `enabled=true` 时，从其 `ref_file` 加载多仓准备指令，由主会话汇总待办并准备一次；`enabled=false` 时跳过，不加载指令。片段缺少该字段或结构无效时停止并报告，先由主会话重新生成片段，不回退读取单仓步骤。
+
+**Output**: 本轮按仓、按任务划分的准备结果
+**Checkpoint**: 所有仓的准备完成或已按计划跳过，再启动 M-2
 
 ## M-2: 按仓拓扑分批 + 子代理并行代码生成
-**Replaces**: steps.md Step 4~10（单仓步骤，多仓模式替换为按拓扑分批并行代码生成）
+**Replaces**: 单仓 Step 4~8、Step 10（任务 Skill 准备由 M-1a 承担）
 **Input**: repo_assignments.json 中的 involved_repos、cross_repo_contracts.json
 **Execution**:
 1. 调用 `parse_tasks_multi(project_root, change_name, repos)` 从多个仓读取tasks.md概览：
@@ -68,7 +81,7 @@
    - **【强制】循环对象边界**：M-2 代码生成循环对象**仅限**各仓 tasks.md `## 代码生成任务` 章节（1.x）。`## Code Review 任务`（2.x）属 M-4（`code_review`）、`## 单元测试任务`（3.x）属 M-5（`unit_test`）——执行计划 steps 数组不含对应 `config_key` 条目（M 关闭）时整章节跳过，**禁止**在 M-2 代码生成循环中执行；1.x 全部 `- [x]` 无待办时直接结束 M-2（进入 post-codegen 编排点判断），不得将 2.x/3.x 作为 M-2 循环对象
 6. **【强制】使用子代理并行执行各仓代码生成**（禁止在主会话中逐仓顺序执行）：
 
-   启动前检查根执行计划 `steps`：仅存在 `config_key=skill_consumption`、`type=built_in`、`enabled=true` 条目时，Read 该条目的 `ref_file.multi`，完成一次主会话准备并将结果传给各仓代理；没有启用条目则跳过且不加载指令文件。子代理同时接收根计划和本仓插槽片段，按各自数据源执行。
+   M-1a 已完成或按计划跳过。向各仓代理传入本仓执行计划片段和本轮准备结果；M-2 不重复准备。
 
    <!-- GATE:REF multi-codegen-template.md -->
    **MANDATORY GATE**: M-2 执行前必须先 Read 本SKILL所在目录下的 `references/multi-codegen-template.md`。
@@ -77,7 +90,7 @@
    读取后输出: "GATE PASSED: references/multi-codegen-template.md loaded"。
    <!-- /GATE:REF -->
 
-   子代理任务描述模板：使用 `references/multi-codegen-template.md`（GATE 已加载）中的模板，将 `{repo}` / `{repo_path}` / `{change_name}` / `{project_root}` / `{skill_dir}` / `{prepared_context}` 占位符替换为实际值后作为子代理任务描述。`{prepared_context}` 填本仓已完成的准备状态与锁定 / 不使用 / 失败结果；开关关闭时填“未启用”，无待办时填“无待办”，不写入额外持久文件。**禁止改写模板中的输入文件表与执行步骤**——子代理按模板流程执行（步骤 c 内嵌 10.1~10.5 等价流程：代码理解 → 锚点解析 → P0/P1/P2 展示 → 内置每任务检查点 → 通用 pre-codegen → 原则自检 → 代码生成；模板内已含测试策略解析，tdd 时按红-绿循环执行）。
+   子代理任务描述模板：使用 `references/multi-codegen-template.md`（GATE 已加载）中的模板，将 `{repo}` / `{repo_path}` / `{change_name}` / `{project_root}` / `{skill_dir}` / `{prepared_context}` 占位符替换为实际值后作为子代理任务描述。`{prepared_context}` 填本仓已完成的准备状态与锁定 / 不使用 / 失败结果；开关关闭时填“未启用”，无待办时填“无待办”，不写入额外持久文件。**禁止改写模板中的输入文件表与执行步骤**——子代理按模板流程执行（步骤 e 内嵌 10.1~10.5 等价流程：代码理解 → 锚点解析 → P0/P1/P2 展示 → 使用 M-1a 已准备的任务上下文 → 通用 pre-codegen → 原则自检 → 代码生成；模板内已含测试策略解析，tdd 时按红-绿循环执行）。
 
 7. 并发规则（对齐通用规则 subagent并行执行规则）：
    - **并发上限**：同时运行的子代理数量不得超过3个
