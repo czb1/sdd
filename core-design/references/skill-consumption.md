@@ -4,7 +4,7 @@
 
 本文件由内置步骤 `skill_consumption` 加载。仅当根执行计划 `docs/.flow_context/execution-plan-core-design.json` 的 `steps` 含 `config_key=skill_consumption`、`type=built_in`、`enabled=true` 条目时执行；骨架从该条目的 `ref_file.single` / `ref_file.multi` 读取本文件。没有启用条目时立即返回，不查找、确认、下载或改写关联。
 
-单仓在 Phase 8 产物及通用插槽执行完毕后，于 Phase 9 执行；多仓在 M-2 全部仓完成及通用插槽执行完毕后，由主会话执行一次 Phase 9，再进入 M-3 审查。`expert_experience`、`--query`、已有任务字段或自定义插槽均不能开启本步骤。计划不可读取或无效时停止并报告，不自行重建。
+单仓在 Phase 8 产物生成后，于 Phase 9 执行；多仓在 M-2 全部仓产物生成后，由主会话执行一次 Phase 9，再进入 M-3 审查。`expert_experience`、`--query`、已有任务字段或自定义插槽均不能开启本步骤。计划不可读取或无效时停止并报告，不自行重建。
 
 <!-- GATE:REF ../core-shared/references/skill-consumption.md -->
 **MANDATORY GATE（仅启用时）**：Read `config_dir / 'skills/core-shared/references/skill-consumption.md'`，按共享规则处理候选、确认、安装、失败及任务回写。路径相对本 SKILL 安装目录为 `../core-shared/references/skill-consumption.md`；不存在时 MUST STOP，不复制规则回 SKILL.md。
@@ -141,11 +141,11 @@ Agent -> User: 最终列明Agent自选任务和实际结果
 ## 多仓执行
 
 1. 主会话读取根执行计划，通过门控后才进入本节；不要使用子仓自己的全局配置推断启停。
-2. 按 involved_repos 读取各仓 tasks.md 的 1.x 任务，以“仓名 + 任务编号”标识候选；主会话可自行准备，或委托各仓执行者只准备候选。委托时显式传递根执行计划路径、本专属指令与共享指令绝对路径，不依赖主会话已加载的上下文。
+2. 按 involved_repos 读取各仓 tasks.md 的 1.x 任务，以“仓名 + 任务编号”标识候选；主会话可自行准备，或委托各仓执行者只准备候选。委托仅在主会话通过门控后发生，传入本仓 tasks.md 路径、候选任务范围、本文件「主流程」第 1～2 项及共享指令绝对路径。子代理只返回候选，不读取根计划或重新调度 Phase 9。
 3. 按上方批量流程由主会话统一确认；无任务或无候选时不发起空确认。各仓执行者不自行提问或在锁定前下载。
 4. 将锁定结果分发到所属仓，按名称复用下载包、按仓分别校验安装并回写。只更新本仓任务；关联仍以各仓 tasks.md 为准，不新增汇总索引。
 5. 实际选用内容影响设计时完善相关设计，再按原执行计划进入 Phase 10 / M-3a；查询或单项获取失败说明后继续原流程。
 
 ## 完成与续跑
 
-仅报告实际查找、用户指定 / Agent 自选 / 不使用、安装及回写结果。已存在有效关联或明确不使用决定时复用；仅对确需新增 / 改选的任务重新准备与批量确认。完成本步骤后继续 Phase 10 / M-3a，按各内置开关及其后通用插槽继续执行；不回到 post-generate，也不重复执行本轮已完成的消费。后续 core-apply 是否消费由它自己的执行计划独立决定。
+仅报告实际查找、用户指定 / Agent 自选 / 不使用、安装及回写结果。已存在有效关联或明确不使用决定时复用；仅对确需新增 / 改选的任务重新准备与批量确认。完成本步骤后按执行计划继续 Phase 10 / M-3a，不重复执行本轮已完成的消费。后续 core-apply 是否消费由它自己的执行计划独立决定。

@@ -579,11 +579,11 @@ BUILT_IN_STEPS_BY_SKILL: Dict[str, List[Dict[str, Any]]] = {
 # pre-codegen is inside the Step 10 task loop; the post-* slots sit between
 # change-level steps. They live in a separate zone of the plan file.
 ORCHESTRATION_POINTS: List[str] = [
-    "pre-codegen",   # task level - inside Step 9 task loop, between 9.3 and 9.4
-    "post-codegen",  # change level - after Step 9, before Step 10
-    "post-l4",       # change level - after Step 10, before Step 11
-    "post-review",   # change level - after Step 11, before Step 12
-    "post-ut",       # change level - after Step 12, before Step 13
+    "pre-codegen",   # task level - inside Step 10 task loop, between 10.3 and 10.4
+    "post-codegen",  # change level - after Step 10, before Step 11
+    "post-l4",       # change level - after Step 11, before Step 12
+    "post-review",   # change level - after Step 12, before Step 13
+    "post-ut",       # change level - after Step 13, before Step 14
 ]
 
 # Per-skill orchestration point slots (P3 generalization, parallel to
@@ -625,9 +625,9 @@ ORCHESTRATION_POINTS_BY_SKILL: Dict[str, List[str]] = {
         "post-code-understanding", # change level - Phase 4 后（代码理解完成后）
         "pre-generate",            # change level - Phase 8 前（生成设计文档前）
         "post-generate",           # change level - Phase 8 后（生成设计文档后，Phase 9 前）
-        "post-traceability",       # change level - Phase 9 后（追溯验证后，Phase 10 前）
-        "post-design-review",      # change level - Phase 10 后（审查后，Phase 11 前）
-        "post-cleanup",            # change level - Phase 11 后（清理后，流程收尾）
+        "post-traceability",       # change level - Phase 10 后（追溯验证后，Phase 11 前）
+        "post-design-review",      # change level - Phase 11 后（审查后，Phase 12 前）
+        "post-cleanup",            # change level - Phase 12 后（清理后，流程收尾）
     ],
     # core-archive: 10 插槽（skeleton-core-archive.md §6）。
     # 粒度：均为 change 级（Step 间）；插槽分布
@@ -665,7 +665,7 @@ FIXED_STEPS: List[Dict[str, Any]] = [
     {"key": "step-6", "skill_md_step": "Step 6", "description": "读取上下文文件"},
     {"key": "step-7", "skill_md_step": "Step 7", "description": "加载代码生成原则（GATE）"},
     {"key": "step-8", "skill_md_step": "Step 8", "description": "展示当前进度"},
-    {"key": "step-9", "skill_md_step": "Step 9", "description": "任务 Skill 准备与消费（默认关闭）"},
+    {"key": "step-9", "skill_md_step": "Step 9", "description": "任务 Skill 准备（默认关闭）"},
     {"key": "step-10", "skill_md_step": "Step 10", "description": "代码生成任务（含 pre-codegen 子环节）"},
     {"key": "step-11", "skill_md_step": "Step 11", "description": "Gate-1 L4 实现追溯验证"},
     {"key": "step-12", "skill_md_step": "Step 12", "description": "Code Review"},
@@ -1580,7 +1580,7 @@ def build_execution_plan(skill: str, ns: Optional[Dict[str, Any]]) -> Dict[str, 
     """
     Build the execution plan for the given skill namespace.
 
-    ns is None -> all-default plan (all built-in steps enabled, no custom steps).
+    ns is None -> all-default plan (per-step defaults, no custom steps).
 
     Plan zones:
       steps                 full ordered view of the whole flow — every fixed

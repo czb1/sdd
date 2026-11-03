@@ -169,7 +169,7 @@ req_refine 补充：开启时需求细化产物在 `docs/.explore_context/req-re
     // ---- 内置步骤开关（true/false）----
     "version_check": true,
     "show_progress": false,  // Step 8 展示当前进度（默认关闭）
-    "skill_consumption": false, // Step 9 任务 Skill 准备与消费（true 开启）
+    "skill_consumption": false, // Step 9 / M-1a 任务 Skill 准备（true 开启）
     "l4_review": true,
     "code_review": true,
     "unit_test": true,

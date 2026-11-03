@@ -18,7 +18,7 @@
 - **有 M 映射的可配置步骤**（`steps` 数组 `type=built_in` 条目，`ref_file.multi`）：`design_traceability`（M-3a）/ `design_review`（M-3b）/ `cleanup`（cleanup 节）
   - **执行计划 steps 数组含该 `config_key` 条目** → 从条目 `ref_file.multi` 字段取指令文件（动态路径解析参见 SKILL.md Reference文件路径解析章节）并 Read，按其中指令执行；强制位（必经关卡/禁止主会话/最后阶段禁止跳过）随条目存在而生效
   - **执行计划不含该 `config_key` 条目** → 该 M 阶段/步骤跳过，**不 Read 指令文件**（内容不进上下文），直接进入下一 M 阶段；强制位（必经关卡/禁止主会话/最后阶段禁止跳过）随条目缺失而豁免
-- **无 M 映射的主会话可配置步骤**（与单仓同一机制、同一执行计划条目，`ref_file` 为单多仓通用文件）：`version_check`（M-1 之前执行）/ `fetch_rules`（M-1 之前执行，B 档双层语义：仅控 code-rule 拉取，GATE 不受控）/ `read_similar`（M-2 之前执行）/ `expert_experience`（M-2 之前执行）/ `skill_consumption`（Phase 9，M-2 全部仓完成及通用插槽执行完毕后，由主会话聚合执行一次，默认关闭）。存在性判断同单仓
+- **无 M 映射的主会话可配置步骤**（与单仓同一机制、同一执行计划条目，`ref_file` 为单多仓通用文件）：`version_check`（M-1 之前执行）/ `fetch_rules`（M-1 之前执行，B 档双层语义：仅控 code-rule 拉取，GATE 不受控）/ `read_similar`（M-2 之前执行）/ `expert_experience`（M-2 之前执行）/ `skill_consumption`（Phase 9，M-2 全部仓产物生成后，由主会话聚合执行一次，默认关闭）。存在性判断同单仓
 - **编排点插槽**（`orchestration_points` 对象）：`post-rule-fetch` / `post-gather-context` / `post-code-understanding` / `pre-generate` / `post-generate` / `post-traceability` / `post-design-review` / `post-cleanup`
   - **对应插槽数组含条目** → 按条目 `type` 执行（`reference`：Read `file` 字段指令文件并执行；`skill`：调用 `skill` 字段指定 skill，`run_mode=subagent` 时 spawn 独立子代理）
   - **对应插槽数组为空** → 跳过，指令文件不加载，直接进入下一阶段
@@ -74,7 +74,7 @@
 
 ## Phase 9: 任务 Skill 关联 [可配置: skill_consumption]
 
-> M-2 全部仓完成并执行通用 `post-generate` 插槽后，主会话检查根执行计划 `steps`。
+> M-2 全部仓产物生成后，主会话检查执行计划 `steps`。
 > - 存在 `config_key=skill_consumption`、`type=built_in`、`enabled=true` 条目 → Read 该条目的 `ref_file.multi` 并执行一次。
 > - 没有启用条目 → 跳过，不加载指令文件。
 > 完成或跳过后进入 M-3；各仓生成代理不执行本阶段。

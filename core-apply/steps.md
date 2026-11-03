@@ -12,10 +12,10 @@
 
 | 序号 | 步骤名 | 对应 SKILL.md Step | 说明 |
 |------|--------|-------------------|------|
-| 0 | build-execution-plan | Step 0 | 构建执行计划（MANDATORY）— 必须为第一个 Phase 的第一个动作，先于 version-check；`main.py flow-config --json --skill core-apply`，持久化 execution-plan-core-apply.json / skipped-core-apply.json，配置为唯一事实源、构建后直接按计划执行（首次运行无配置文件时先提供配置机会） |
+| 0 | build-execution-plan | Step 0 | 构建执行计划（MANDATORY）— 必须为第一个 Phase 的第一个动作，先于 version-check；`main.py flow-config --json --skill core-apply`，持久化 execution-plan-core-apply.json / skipped-core-apply.json，配置为唯一事实源、构建后直接按计划执行（首次运行无配置文件时自动初始化） |
 | 1 | version-check | Step 1 | Version Check **[可配置: version_check]** — 第一个 Phase 的第二个动作，紧随 Step 0；指令文件 references/version-check.md，存在性判断见执行计划（含则 Read 执行，不含则跳过） |
 | 2 | select-change | Step 2 | 选择 change；多个活跃 change 时用 AskUserQuestion 让用户选择 |
-| 3 | multi-repo-detect | Step 3 | 多仓检测与路由 — 读取repo_assignments.json判断模式；单仓模式继续Step 4，多仓模式进入M-1~M-6 |
+| 3 | multi-repo-detect | Step 3 | 多仓检测与路由 — 读取repo_assignments.json判断模式；单仓模式继续Step 4，多仓模式进入 M-1 → M-1a → M-2~M-6 |
 | 4 | check-status | Step 4 | 检查 change 状态（schema / artifacts / tasks）— **仅单仓模式** |
 | 5 | get-apply-instructions | Step 5 | 获取执行指令（contextFiles / progress / task list） |
 | 6 | read-context | Step 6 | 读取上下文文件 |
@@ -46,16 +46,16 @@
 | 2 | select-change | Step 2 | 选择 change — 不变 |
 | 3 | M-1 | Step 3 | 多仓检测 + 多仓 change 状态检查 — 读取 repo_assignments.json，确认 involved_repos 列表 + Agent 直接 Glob/Read 检查各仓 artifacts/tasks 状态 + 加载 references/multi-repo.md GATE，并生成各仓执行计划片段（消费关闭也须生成） |
 | 4 | M-1a | 多仓独立环节 | 任务 Skill 准备 **[可配置: skill_consumption]**（默认关闭）；从本仓片段 `built_in_steps.skill_consumption` 判断启停并加载 `ref_file`，由主会话汇总准备一次，M-2 使用准备结果 |
-| 5~8 | M-2 | Step 4~8、Step 10 | 按仓拓扑分批 + 子代理并行代码生成（含代码生成原则注入 + 已准备的任务上下文 + pre-codegen 编排点） — 按 references/multi-repo.md 执行（GATE 加载 multi-codegen-template.md 子代理模板），子代理按拓扑分批并行读取 context files + 原则文件 + 并行执行代码生成（**循环对象仅限 tasks.md `## 代码生成任务` 章节 1.x**；2.x 属 M-4、3.x 属 M-5，对应 M 关闭时整章节跳过，禁止在 M-2 执行） |
-| 9 | M-3 | Step 11 | 各仓 L4 实现追溯验证 **[可配置: l4_review]** — 指令文件 references/l4-review-multi.md，存在性判断见执行计划（subagent 并行） |
-| 10 | M-4 | Step 12 | 各仓 Code Review **[可配置: code_review]** — 指令文件 references/code-review-multi.md，存在性判断见执行计划（subagent 并行） |
-| 11 | M-5 | Step 13 | 各仓单元测试 **[可配置: unit_test]** — 指令文件 references/unit-test-multi.md，存在性判断见执行计划（subagent 并行） |
-| 12 | M-6 | Step 14 | 各仓 L5 UT 覆盖度验证 **[可配置: l5_coverage]** — 指令文件 references/l5-coverage-multi.md，存在性判断见执行计划（依赖 unit_test，UT 关闭则自动降级）（subagent 并行） |
-| 13 | on-completion | Step 15 | 完成或暂停时展示状态 **[可配置: completion_report]**：指令文件 references/completion-report.md（单多仓通用），存在性判断见执行计划；汇总各仓状态 + 读 skipped-core-apply.json 展示可配置步骤状态（show_progress 默认关闭，默认计划 skipped 中标记 default_disabled） |
+| 5 | M-2 | Step 4~8、Step 10 | 按仓拓扑分批 + 子代理并行代码生成（含代码生成原则注入 + 已准备的任务上下文 + pre-codegen 编排点） — 按 references/multi-repo.md 执行（GATE 加载 multi-codegen-template.md 子代理模板），子代理按拓扑分批并行读取 context files + 原则文件 + 并行执行代码生成（**循环对象仅限 tasks.md `## 代码生成任务` 章节 1.x**；2.x 属 M-4、3.x 属 M-5，对应 M 关闭时整章节跳过，禁止在 M-2 执行） |
+| 6 | M-3 | Step 11 | 各仓 L4 实现追溯验证 **[可配置: l4_review]** — 指令文件 references/l4-review-multi.md，存在性判断见执行计划（subagent 并行） |
+| 7 | M-4 | Step 12 | 各仓 Code Review **[可配置: code_review]** — 指令文件 references/code-review-multi.md，存在性判断见执行计划（subagent 并行） |
+| 8 | M-5 | Step 13 | 各仓单元测试 **[可配置: unit_test]** — 指令文件 references/unit-test-multi.md，存在性判断见执行计划（subagent 并行） |
+| 9 | M-6 | Step 14 | 各仓 L5 UT 覆盖度验证 **[可配置: l5_coverage]** — 指令文件 references/l5-coverage-multi.md，存在性判断见执行计划（依赖 unit_test，UT 关闭则自动降级）（subagent 并行） |
+| 10 | on-completion | Step 15 | 完成或暂停时展示状态 **[可配置: completion_report]**：指令文件 references/completion-report.md（单多仓通用），存在性判断见执行计划；汇总各仓状态 + 读 skipped-core-apply.json 展示可配置步骤状态（show_progress 默认关闭，默认计划 skipped 中标记 default_disabled） |
 
 **编排点插槽**（多仓下同样查执行计划）：`post-codegen` / `post-l4` / `post-review` / `post-ut` 在 M-2~M-5 对应阶段后存在性判断执行；`pre-codegen` 在 M-2 子代理内 task 级执行。关闭的步骤指令文件（references/*-multi.md）不被 Read。
 
-**【说明】多仓模式下单仓 Step 4~10 + 门控检查全部由 M-1~M-6 替代**：
+**【说明】多仓模式下单仓 Step 4~10 + 门控检查由 M-1、M-1a、M-2~M-6 替代**：
 - M-1：多仓检测（读取 repo_assignments.json + 多仓 change 状态检查 + 加载 GATE）— 多仓模式下 status 脚本基于根目录路径不适用，M-1 替代为 Agent 直接读取各仓文件检查状态
 - M-1a：任务 Skill 准备为默认关闭的多仓内置环节；启停及指令路径由各仓片段提供，主会话聚合准备一次，M-2 子代理只读取本仓片段与准备结果。
 - M-2：按拓扑分批并行代码生成（定义仓先于消费仓，每仓1个子代理，并发上限3），子代理内部包含读取 context files + 代码生成原则 + 代码生成
