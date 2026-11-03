@@ -4,6 +4,8 @@ CoreSpec 的 core-design / core-apply 指令文件、core-shared 共享文档及
 
 本仓已整合 master 的配置驱动流程与 main 的任务 Skill 消费能力：首次运行自动初始化配置，每次运行按配置重建执行计划，不再要求流程配置确认。调整步骤直接编辑 `~/.corespec/flow-config.json`，下次运行自动生效。
 
+同时补齐 master2 的增量复审（`--recheck`）、多仓审查目录约束与 Linux/Windows 版本升级结果反馈。审查指令沿用 Skill 消费插入后的步骤编号；单仓/多仓即使关闭追溯验证或文档审查，也须先完成或按配置跳过 Phase 9 的 Skill 关联。
+
 ## 任务 Skill 消费
 
 任务 Skill 消费是**内置可启停步骤**：design / apply 各自通过 `skill_consumption: true/false` 控制，均默认 `false`。仅启用时从执行计划条目的 `ref_file.single` / `ref_file.multi` 加载消费指令；关闭时不检索、下载、消费关联内容或回写字段，已有字段和文件保留。
@@ -32,6 +34,6 @@ python -m unittest discover -s tests -v
 python core-shared/scripts/flow_config.py --describe --json --skill core-design
 ```
 
-回归覆盖默认关闭、四种启停组合、直接编辑配置后的重建、静默初始化、非法配置保留旧计划、步骤顺序、独立自定义插槽，以及多仓片段与根计划门控。也可通过 `python tests/test_skill_consumption_flow.py --flow-config /path/to/flow_config.py -v` 验证目标模块。
+回归覆盖默认关闭、四种启停组合、直接编辑配置后的重建、静默初始化、非法配置保留旧计划、步骤顺序、独立自定义插槽、多仓片段与根计划门控，以及注册表/骨架/步骤表/指令标题一致性和关闭审查时的 Skill 关联衔接。也可通过 `python tests/test_skill_consumption_flow.py --flow-config /path/to/flow_config.py -v` 验证目标模块。
 
 本仓仍不包含完整 CoreHarness（各 Skill 的 main.py、core_paths、模板包等）及内网服务环境；完整 Agent 多仓执行、真实 CLI 检索和下载需在目标环境验收。

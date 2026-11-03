@@ -1,4 +1,4 @@
-# Phase 10: design-doc-reviewer 审查（单仓模式指令文件）
+# Phase 11: design-doc-reviewer 审查（单仓模式指令文件）
 
 > 本文件为可配置步骤 `design_review` 的指令文件（单仓版）。仅在执行计划含 `key=design_review` 条目时被 Read。
 
@@ -9,12 +9,12 @@
 
 **【强制执行证据】**：
 - **必须**使用 Agent tool（subagent_type="general"）启动子代理执行审查 — 禁止直接调用 Skill tool: design-doc-reviewer
-- **必须**显式声明"已通过 Agent tool 启动子代理执行 Phase 10 design-doc-reviewer 审查"
+- **必须**显式声明"已通过 Agent tool 启动子代理执行 Phase 11 design-doc-reviewer 审查"
 - **必须**展示子代理的返回结果（PASS/FAIL 及 findings 数量）
 
 **子代理启动方式**：
 ```
-Agent tool: subagent_type="general", prompt="执行 core-design Phase 10 design-doc-reviewer 审查。调用 Skill tool: design-doc-reviewer <change-name>。按 design-doc-reviewer 的 CHECK-ID 集合执行审查，如有 ERROR 执行 3 轮自动修复循环。审查完成后报告结果。"
+Agent tool: subagent_type="general", prompt="执行 core-design Phase 11 design-doc-reviewer 审查。调用 Skill tool: design-doc-reviewer <change-name>。按 design-doc-reviewer 的 CHECK-ID 集合执行审查，如有 ERROR 执行 3 轮自动修复循环。审查完成后报告结果。"
 ```
 
 ## 审查维度
@@ -45,19 +45,19 @@ Agent tool: subagent_type="general", prompt="执行 core-design Phase 10 design-
 
 ## 判断
 
-- 审查通过 → 进入 Phase 11（如 `cleanup` 开启）或流程完毕
+- 审查通过 → 进入 Phase 12（如 `cleanup` 开启）或流程完毕
 - 审查失败 → 修复文档问题后重新审查（循环最多 3 次）
 
 **主会话后处理**（子代理返回后执行）：
-- 子代理返回审查通过 → 进入 Phase 11（如 `cleanup` 开启）
+- 子代理返回审查通过 → 进入 Phase 12（如 `cleanup` 开启）
 - 子代理返回【用户意图类】finding → 主会话与用户交互澄清，完成后再次派发子代理执行审查
 - 子代理返回 3 轮 FAIL → 主会话上报用户处理
 - 子代理执行失败或无法调起 → **【强制】先向用户明确告知**："子代理审查执行失败（原因：{具体错误}），将降级为主会话直接执行 design-doc-reviewer"，**然后**主会话降级直接调用 design-doc-reviewer Skill 执行
 
 ## 衔接豁免
 
-- **`design_review` 关闭时**：跳过 Phase 10，Phase 9 通过后（如 `design_traceability` 开启）或 Phase 8 完成后（如 `design_traceability` 也关闭）直接进入 Phase 11。"禁止主会话直接执行"强制位随关闭豁免。
-- **`design_traceability` 关闭但 `design_review` 开启时**：Phase 8 完成后直接进入 Phase 10，不经 Phase 9。
+- **`design_review` 关闭时**：跳过 Phase 11，Phase 10 通过后（如 `design_traceability` 开启）或 Phase 9 完成或跳过后（如 `design_traceability` 也关闭）直接进入 Phase 12。"禁止主会话直接执行"强制位随关闭豁免。
+- **`design_traceability` 关闭但 `design_review` 开启时**：Phase 9 完成或跳过后直接进入 Phase 11，不经 Phase 10。
 
 ## 关闭语义
 
