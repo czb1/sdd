@@ -18,7 +18,7 @@ AskUserQuestion({
     question: "CoreSpec 有新版本可更新。本地版本: <local_version_update_time>, 远端最新发布: <remote_version_update_time>。请选择操作：",
     header: "版本升级",
     options: [
-      { label: "Upgrade", description: "下载并安装新版本（立即在后台执行，重启后生效）" },
+      { label: "Upgrade", description: "下载并安装新版本。Linux 上会在当前终端前台执行安装器；Windows 上立即在后台新窗口执行，重启后生效。" },
       { label: "Skip 24h", description: "跳过本次升级提示，24小时内不再提醒" },
       { label: "Continue", description: "忽略升级，继续执行当前流程" }
     ]
@@ -27,10 +27,13 @@ AskUserQuestion({
 ```
 
 Based on user's choice:
-- If Upgrade: run the command below. The installer runs in background. Then **IMMEDIATELY proceed to next step** — do NOT wait for the installer to finish, do NOT ask the user to restart now. Simply note: "升级已在后台启动，安装完成后请重启 CodeAgent。"
+- If Upgrade: run the command below. On Linux this BLOCKS the agent until the installer finishes — the user will see the full installer output in the current terminal. On Windows the installer runs in a separate console window.
   ```bash
   python -c "import sys,subprocess;from pathlib import Path;d=Path.home()/'.config/opencode/skills/core-shared/scripts';d2=Path.home()/'.cac/skills/core-shared/scripts';s=d if d.exists() else d2;r=subprocess.run([sys.executable,str(s/'version_check.py'),'upgrade'],encoding='utf-8',capture_output=True,text=True);print(r.stdout.strip());sys.exit(r.returncode)"
   ```
+  **You MUST show the command output to the user** and give feedback based on the JSON result:
+  - If output contains `"success": true` (installer finished): tell the user the upgrade completed. Say "升级完成，请重启 CodeAgent 以加载最新版本。" (Linux) or "升级程序已在后台新窗口启动，安装完成后请重启 CodeAgent。" (Windows).
+  - If output contains `"success": false` (download failed, or installer exited non-zero on Linux): tell the user the upgrade failed and show the `"error"` field from the output, e.g. "升级失败：<error 内容>。可稍后重试或手动执行升级。"
 - If Skip: run the command below, replacing `<REMOTE_TIME>` with the `remote_version_update_time` value from the check output, then proceed to next step:
   ```bash
   python -c "import sys,subprocess;from pathlib import Path;d=Path.home()/'.config/opencode/skills/core-shared/scripts';d2=Path.home()/'.cac/skills/core-shared/scripts';s=d if d.exists() else d2;r=subprocess.run([sys.executable,str(s/'version_check.py'),'skip','--hours','24','--create-time','<REMOTE_TIME>'],encoding='utf-8',capture_output=True,text=True);print(r.stdout.strip());sys.exit(r.returncode)"
