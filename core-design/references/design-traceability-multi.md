@@ -42,28 +42,29 @@
    ```
    你是仓 {repo} 的专属追溯验证代理。请对 {repo} 仓执行 cross-doc-checker L2/L3 追溯验证：
 
-   审查对象：
-   - {repo}/docs/changes/<change>/delta_design.md
-   - {repo}/docs/changes/<change>/tasks.md
-   - {repo}/docs/changes/<change>/delta_test_design.md
+   审查对象（**全部位于 {repo_path} 仓内，禁止从主项目根 {project_root} 查找**）：
+   - {repo_path}/docs/changes/<change>/delta_design.md
+   - {repo_path}/docs/changes/<change>/tasks.md
+   - {repo_path}/docs/changes/<change>/delta_test_design.md
 
    验证步骤：
-   1. 使用 Skill tool 调用 cross-doc-checker <change-name> --layer L2（**禁止调用 design-doc-reviewer 替代**，禁止自行用 Grep/Read 替代 skill 调用）
+   1. 使用 Skill tool 调用 cross-doc-checker <change-name> --layer L2（**禁止调用 design-doc-reviewer 替代**，禁止自行用 Grep/Read 替代 skill 调用）。**【强制多仓规则】**：Skill 调用后按 cross-doc-checker 多仓解析规则将 `<change-dir>` 解析为 `{repo_path}/docs/changes/<change-name>/`（**禁止**解析到 `{project_root}/docs/changes/`，**禁止**将文档复制到主项目根来适配单仓路径）
    2. 读取 L2 验证输出的 findings 列表
    3. 如果存在 ERROR 级 finding，执行自动修复（最多 3 轮）：
-      - delta_spec 需求未在 delta_design 中映射 → 在 delta_design.md 中补充该需求的设计章节和"对应需求"字段
+      - delta_spec 需求未在 delta_design 中映射 → 在 {repo_path}/docs/changes/<change-name>/delta_design.md 中补充该需求的设计章节和"对应需求"字段
       - 截断/占位符 → 替换为具体内容
-   4. L2 修复完成后，重新调用 Skill tool: cross-doc-checker <change-name> --layer L2 验证
+   4. L2 修复完成后，重新调用 Skill tool: cross-doc-checker <change-name> --layer L2 --recheck <本轮FAIL的CHECK-ID,...> 验证（同样按多仓解析规则定位到 {repo_path}；增量复审只重跑失败项）
    5. L2 通过后，使用 Skill tool 调用 cross-doc-checker <change-name> --layer L3
    6. 读取 L3 验证输出的 findings 列表
    7. 如果存在 ERROR 级 finding，执行自动修复（最多 3 轮）：
-      - 设计模块未在 tasks 中覆盖 → 在 tasks.md 中补充对应任务
+      - 设计模块未在 tasks 中覆盖 → 在 {repo_path}/docs/changes/<change-name>/tasks.md 中补充对应任务
       - 截断/占位符 → 替换为具体内容
-   8. L3 修复完成后，重新调用 Skill tool: cross-doc-checker <change-name> --layer L3 验证
+   8. L3 修复完成后，重新调用 Skill tool: cross-doc-checker <change-name> --layer L3 --recheck <本轮FAIL的CHECK-ID,...> 验证（同样按多仓解析规则定位到 {repo_path}；增量复审只重跑失败项）
    9. 3 轮后仍有 ERROR 级 finding → 返回 ESCALATE 状态 + blocking_issues 列表
 
    当前变更：{change_name}
    项目根目录：{project_root}
+   仓目录：{repo_path}
 
    返回格式：
    - 全部通过：status=PASSED, L2_findings=[...], L3_findings=[...]

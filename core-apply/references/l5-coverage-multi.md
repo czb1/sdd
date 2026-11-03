@@ -36,7 +36,7 @@
 | 4 | 业务代码头文件 | tasks.md中代码生成任务的生成文件 | **修复必需输入**：修复L5 findings需要理解业务代码接口定义，用于编写正确的UT代码 |
 
 执行步骤：
-1. 使用 Skill tool 调用 cross-doc-checker <change-name> --layer L5（禁止自行用Grep/Read替代skill调用）
+1. 使用 Skill tool 调用 cross-doc-checker <change-name> --layer L5（禁止自行用Grep/Read替代skill调用）。**【强制多仓规则】**：Skill 调用后按 cross-doc-checker 多仓解析规则将 `<change-dir>` 解析为 `{repo_path}/docs/changes/<change-name>/`，L5 测试文件 Glob 范围限定在 `{repo_path}/**`（**禁止**解析到 `{project_root}/docs/changes/`，**禁止**将文档复制到主项目根来适配单仓路径）
 2. 读取审查输出的findings列表
 3. 如果存在ERROR级finding，**【强制】执行3轮自动修复循环**（禁止跳过，禁止直接报告问题而不修复）：
 
@@ -67,7 +67,7 @@
        | python | python-ut |
        | js/ts/other | test-driven-development |
 
-       修复完成后重新调用 Skill tool: cross-doc-checker <change-name> --layer L5
+       修复完成后重新调用 Skill tool: cross-doc-checker <change-name> --layer L5 --recheck <本轮FAIL的CHECK-ID,...>（同样按多仓解析规则定位到 {repo_path}；增量复审只重跑失败项）
        读取新的findings列表
 4. 3轮后仍有ERROR级finding → 返回ESCALATE状态 + blocking_issues列表
 5. **【强制】禁止发现ERROR后直接返回ESCALATE而不执行修复循环**

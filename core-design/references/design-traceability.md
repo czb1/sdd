@@ -33,7 +33,7 @@ Skill tool: cross-doc-checker <change-name> --layer L2
 2. 按 finding 类型执行修复：
    - 【文档保真类】delta_spec 需求未在 delta_design 中映射 → 在 delta_design.md 中补充该需求的设计章节和"对应需求"字段
    - 【文档保真类】截断/占位符 → 替换为具体内容
-3. 修复完成后，**必须重新调用** Skill tool: cross-doc-checker <change-name> --layer L2
+3. 修复完成后，**必须重新调用** Skill tool: cross-doc-checker <change-name> --layer L2 --recheck <本轮FAIL的CHECK-ID,...>（增量复审只重跑失败项）
 4. 3 轮后仍有 FAIL → 暂停流程，返回主会话由主会话上报用户处理
 5. **禁止**：发现 FAIL 后仅报告问题不修复
 
@@ -51,7 +51,7 @@ Skill tool: cross-doc-checker <change-name> --layer L3
 2. 按 finding 类型执行修复：
    - 【文档保真类】设计需求未在 tasks 中覆盖 → 在 tasks.md 中补充对应任务，填写"关联需求"字段
    - 【文档保真类】截断/占位符 → 替换为具体内容
-3. 修复完成后，**必须重新调用** Skill tool: cross-doc-checker <change-name> --layer L3
+3. 修复完成后，**必须重新调用** Skill tool: cross-doc-checker <change-name> --layer L3 --recheck <本轮FAIL的CHECK-ID,...>（增量复审只重跑失败项）
 4. 3 轮后仍有 FAIL → 暂停流程，返回主会话由主会话上报用户处理
 5. **禁止**：发现 FAIL 后仅报告问题不修复
 

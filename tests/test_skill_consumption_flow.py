@@ -6,6 +6,7 @@ import importlib.util
 import io
 import json
 from pathlib import Path
+import re
 import sys
 import tempfile
 import unittest
@@ -234,6 +235,46 @@ class SkillConsumptionFlowTests(unittest.TestCase):
             self.assertEqual([e["key"] for e in entries], ["judgment_ladder"])
             self.assertEqual(entries[0]["file"], other["file"])
             self.assertIs(self.entry(plan)["enabled"], enabled)
+
+
+@unittest.skipIf(flow is None, "Supply the runtime via --flow-config /path/to/flow_config.py")
+class FlowReferenceConsistencyTests(unittest.TestCase):
+    def test_review_reference_headings_match_registry_and_steps(self):
+        for skill in ("core-design", "core-apply"):
+            skeleton = (ROOT / skill / "SKILL.md").read_text(encoding="utf-8")
+            steps = (ROOT / skill / "steps.md").read_text(encoding="utf-8")
+            for builtin in flow.get_built_in_steps(skill):
+                if builtin["key"] not in {"design_traceability", "design_review", "l4_review", "l5_coverage"}:
+                    continue
+                label = builtin["skill_md_step"]
+                marker = f"[可配置: {builtin['key']}]"
+                rows = [line for line in steps.splitlines()
+                        if line.startswith("|") and marker in line]
+                self.assertTrue(rows, (skill, builtin["key"]))
+                self.assertTrue(any(f"| {label} |" in row for row in rows))
+                heading = label if skill == "core-design" else label.split()[1] + "."
+                pattern = rf"(?m)^### {re.escape(heading)}.*{re.escape(marker)}"
+                self.assertIsNotNone(re.search(pattern, skeleton), (skill, builtin["key"], label))
+                for mode, reference in builtin["ref_file"].items():
+                    with self.subTest(skill=skill, key=builtin["key"], mode=mode):
+                        title = (ROOT / skill / reference).read_text(encoding="utf-8").splitlines()[0]
+                        self.assertTrue(title.startswith(f"# {label}:"), title)
+
+    def test_disabled_design_gates_do_not_bypass_skill_association(self):
+        builtins = {b["key"]: b for b in flow.get_built_in_steps("core-design")}
+        consumption_phase = builtins["skill_consumption"]["skill_md_step"]
+        for key in ("design_traceability", "design_review"):
+            for mode, reference in builtins[key]["ref_file"].items():
+                with self.subTest(key=key, mode=mode):
+                    text = (ROOT / "core-design" / reference).read_text(encoding="utf-8")
+                    transitions = [line for line in text.splitlines()
+                                   if "`design_traceability` 关闭" in line and "进入" in line]
+                    self.assertTrue(transitions, reference)
+                    for transition in transitions:
+                        self.assertIn(f"{consumption_phase} 完成或跳过后", transition)
+        reference = builtins["design_traceability"]["ref_file"]["multi"]
+        text = (ROOT / "core-design" / reference).read_text(encoding="utf-8")
+        self.assertIn(f"通用 `post-generate` 插槽执行完毕且 {consumption_phase} 完成或按计划跳过后", text)
 
 
 if __name__ == "__main__":

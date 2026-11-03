@@ -38,24 +38,25 @@
    ```
    你是仓 {repo} 的专属文档审查代理。请对 {repo} 仓执行 design-doc-reviewer 审查：
 
-   审查对象：
-   - {repo}/docs/changes/<change>/delta_design.md
-   - {repo}/docs/changes/<change>/delta_test_design.md
-   - {repo}/docs/changes/<change>/tasks.md
+   审查对象（**全部位于 {repo_path} 仓内，禁止从主项目根 {project_root} 查找**）：
+   - {repo_path}/docs/changes/<change>/delta_design.md
+   - {repo_path}/docs/changes/<change>/delta_test_design.md
+   - {repo_path}/docs/changes/<change>/tasks.md
 
    审查步骤：
-   1. 使用 Skill tool 调用 design-doc-reviewer <change-name>（**禁止调用 cross-doc-checker 替代**，禁止自行用 Grep/Read 替代 skill 调用）
+   1. 使用 Skill tool 调用 design-doc-reviewer <change-name>（**禁止调用 cross-doc-checker 替代**，禁止自行用 Grep/Read 替代 skill 调用）。**【强制多仓规则】**：Skill 调用后按 design-doc-reviewer Input 规范的多仓规则，将 `<change-dir>` 解析为 `{repo_path}/docs/changes/<change-name>/`（即 `--project-root {repo_path}` 语义；**禁止**解析到 `{project_root}/docs/changes/`，**禁止**将文档复制到主项目根来适配单仓路径）
    2. 读取审查输出的 findings 列表
    3. 如果存在 ERROR 级 finding，执行自动修复（最多 3 轮）：
       - 必需章节缺失 → 补充缺失章节
       - 截断/占位符 → 替换为具体内容
       - 验收条件缺失 → 补充可判定的验收条件
       - 视图缺失 → 补充 PlantUML 图
-   4. 修复后重新调用 Skill tool: design-doc-reviewer <change-name> 验证
+   4. 修复后重新调用 Skill tool: design-doc-reviewer <change-name> --recheck <本轮FAIL的CHECK-ID,...> 验证（同样按多仓规则定位到 {repo_path}；增量复审只重跑失败项，未列入清单的 Stage 3 项记 NOT_IN_RECHECK）
    5. 3 轮后仍有 ERROR 级 finding → 返回 ESCALATE 状态 + blocking_issues 列表
 
    当前变更：{change_name}
    项目根目录：{project_root}
+   仓目录：{repo_path}
 
    返回格式：
    - 全部通过：status=PASSED, findings=[...]

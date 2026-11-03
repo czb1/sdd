@@ -39,7 +39,7 @@ Agent tool: subagent_type="general", prompt="执行 core-design Phase 11 design-
    - 【实现一致性类】任务缺少必需字段 → 补充编程语言/关联需求/验收标准
    - 【用户意图类】NEEDS CLARIFICATION 超标 → 返回主会话，由主会话与用户澄清
    - 【用户意图类】→ **禁止**自行修改文档掩盖问题，必须返回主会话由主会话与用户更新决策记录
-3. 修复完成后，**必须重新调用** Skill tool: design-doc-reviewer <change-name>
+3. 修复完成后，**必须重新调用** Skill tool: design-doc-reviewer <change-name> --recheck <本轮FAIL的CHECK-ID,...>（增量复审只重跑失败项，禁止无条件完整重审）
 4. 3 轮后仍有 FAIL → 暂停流程，返回主会话由主会话上报用户处理
 5. **禁止**：发现 FAIL 后仅报告问题不修复
 
