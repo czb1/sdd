@@ -1,11 +1,11 @@
-# Step 11: Gate-1 L4 实现追溯验证（多仓模式指令）
+# Step 10: Gate-1 L4 实现追溯验证（多仓模式指令）
 
 > 本文件为可配置步骤 `l4_review` 的指令文件（多仓版）。仅在执行计划含 `key=l4_review` 条目时被 Read。
 > 指令来源：`references/multi-repo.md` 的 **M-3**（多仓下 L4 验证的唯一执行权威，与 multi-repo.md 内容一致）。
 
 ## 多仓下的执行位置
 
-多仓模式下，L4 验证由 **M-3** 承担（替代单仓 Step 11 gate-1-traceability）。M-2（各仓代码生成）完成后，主会话分派 M-3 子代理并行执行各仓 L4 验证：
+多仓模式下，L4 验证由 **M-3** 承担（替代单仓 Step 10 gate-1-traceability）。M-2（各仓代码生成）完成后，主会话分派 M-3 子代理并行执行各仓 L4 验证：
 
 - M-3: 各仓L4实现追溯验证（subagent并行，替代门控1 L4）
 
@@ -31,7 +31,7 @@
 | 4 | 执行计划片段 | {project_root}/docs/.flow_context/execution-plan-fragment-core-apply-{repo}.json | **编排输入**：本仓执行计划片段。post-l4 插槽条目在 L4 验证完成后执行；不在插槽中的编排点不执行 |
 
 执行步骤：
-1. 使用 Skill tool 调用 cross-doc-checker <change-name> --layer L4（禁止自行用Grep/Read替代skill调用）
+1. 使用 Skill tool 调用 cross-doc-checker <change-name> --layer L4（禁止自行用Grep/Read替代skill调用）。**【强制多仓规则】**：Skill 调用后按 cross-doc-checker 多仓解析规则将 `<change-dir>` 解析为 `{repo_path}/docs/changes/<change-name>/`，L4 代码文件 Glob 范围限定在 `{repo_path}/**`（**禁止**解析到 `{project_root}/docs/changes/`，**禁止**将文档复制到主项目根来适配单仓路径）
 2. 读取审查输出的findings列表
 3. 如果存在ERROR级finding，**【强制】执行3轮自动修复循环**（禁止跳过，禁止直接报告问题而不修复）：
 
@@ -50,7 +50,7 @@
        | 【实现一致性类-Code<Doc】实现不足 | 补充文档要求的代码（Edit/Write代码文件） |
        | 【文档保真类】设计文档与实现不一致 | 以实际代码为准，更新delta_design.md |
 
-       修复后重新调用 Skill tool: cross-doc-checker <change-name> --layer L4
+       修复后重新调用 Skill tool: cross-doc-checker <change-name> --layer L4 --recheck <本轮FAIL的CHECK-ID,...>（同样按多仓解析规则定位到 {repo_path}；增量复审只重跑失败项）
        读取新的findings列表
 4. 3轮后仍有ERROR级finding → 返回ESCALATE状态 + blocking_issues列表
 5. **【强制】禁止发现ERROR后直接返回ESCALATE而不执行修复循环**
