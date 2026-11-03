@@ -246,7 +246,7 @@ sys.exit(result.returncode)
 > 本步骤为默认关闭的内置可启停步骤。
 > - **执行计划 `steps` 含 `config_key=skill_consumption`、`type=built_in`、`enabled=true` 的条目** → 从条目 `ref_file.single` / `ref_file.multi` 取指令文件并 Read，按其中指令执行。
 > - **没有启用条目** → 跳过，不加载指令文件，继续 Phase 10。
-> - 单仓在 Phase 8 和其后的通用插槽执行完毕后执行；多仓在 M-2 全部仓完成及通用插槽执行完毕后，由主会话聚合执行一次。
+> - 单仓在 Phase 8 产物生成后执行；多仓在 M-2 全部仓产物生成后，由主会话聚合执行一次。
 
 ### Phase 10: 设计追溯验证（强制）[可配置: design_traceability]
 

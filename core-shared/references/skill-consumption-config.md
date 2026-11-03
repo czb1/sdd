@@ -6,7 +6,7 @@
 
 | 命名空间 | 内置键 | 默认 | 执行位置 |
 |----------|--------|------|----------|
-| core-design | skill_consumption | false | Phase 9：Phase 8 及其通用插槽完成后；多仓 M-2 全部完成后由主会话聚合执行 |
+| core-design | skill_consumption | false | Phase 9：Phase 8 产物生成后；多仓 M-2 全部完成后由主会话聚合执行 |
 | core-apply | skill_consumption | false | 单仓 Step 9 / 多仓 M-1a 准备一次；Step 10 / M-2 使用已准备的当前任务上下文 |
 
 ```jsonc

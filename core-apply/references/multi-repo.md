@@ -2,7 +2,7 @@
 
 **Skill**: core-apply
 **Depends On**: repo_assignments.json
-**Step Mapping Authority**: M-编号与 steps.md 序号一一对应（M-1→Step3, M-1a→任务 Skill 准备, M-2→Step4~8及Step10, M-3→Step11, M-4→Step12, M-5→Step13, M-6→Step14）
+**Step Mapping Authority**: 以 steps.md 的多仓阶段表为准，执行顺序为 M-1 → M-1a → M-2~M-6；各阶段与单仓步骤的职责对应见该表。
 
 ## 可配置步骤与编排点（多仓模式）
 

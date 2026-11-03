@@ -1,7 +1,7 @@
 # Code Generation Principles Reference: core-apply
 
 **Skill**: core-apply
-**Usage**: 本文档由 SKILL.md Step 7 通过 GATE 加载，Agent 在执行代码生成时必须遵守以下原则。每条原则包含约束描述、触发条件、违反后果、与代码生成流程的映射。
+**Usage**: 本文档在单仓由 SKILL.md Step 7 通过 GATE 加载，多仓由 M-2 各仓代码生成代理读取并输出 GATE 记录，Agent 在执行代码生成时必须遵守以下原则。每条原则包含约束描述、触发条件、违反后果、与代码生成流程的映射。
 
 ---
 
