@@ -1,4 +1,4 @@
-# Step 14: Gate-2 L5 UT覆盖度验证（多仓模式指令）
+# Step 13: Gate-2 L5 UT覆盖度验证（多仓模式指令）
 
 > 本文件为可配置步骤 `l5_coverage` 的指令文件（多仓版）。仅在执行计划含 `key=l5_coverage` 条目时被 Read。
 > **依赖规则**：`l5_coverage` 依赖 `unit_test`。若 `unit_test` 关闭，本步骤自动降级，本文件不被 Read。
@@ -10,13 +10,13 @@
 
 ## 多仓下的执行位置
 
-多仓模式下，L5 验证由 **M-6** 承担（替代单仓 Step 14 gate-2-coverage）。M-5（各仓单元测试）完成后，主会话分派 M-6 子代理并行执行各仓 L5 验证：
+多仓模式下，L5 验证由 **M-6** 承担（替代单仓 Step 13 gate-2-coverage）。M-5（各仓单元测试）完成后，主会话分派 M-6 子代理并行执行各仓 L5 验证：
 
 - M-6: 各仓L5 UT覆盖度验证（subagent并行，替代门控2 L5）
 
 ## M-6 执行指令
 
-**Replaces**: SKILL.md Step 14 gate-2-coverage（单仓步骤）
+**Replaces**: steps.md Step 11 gate-2-coverage（单仓步骤）
 **Input**: 各仓UT代码、delta_test_design.md、业务代码头文件、tasks.md
 
 ### 1. 对每个涉及仓启动子代理执行L5验证
@@ -36,7 +36,7 @@
 | 4 | 业务代码头文件 | tasks.md中代码生成任务的生成文件 | **修复必需输入**：修复L5 findings需要理解业务代码接口定义，用于编写正确的UT代码 |
 
 执行步骤：
-1. 使用 Skill tool 调用 cross-doc-checker <change-name> --layer L5（禁止自行用Grep/Read替代skill调用）
+1. 使用 Skill tool 调用 cross-doc-checker <change-name> --layer L5（禁止自行用Grep/Read替代skill调用）。**【强制多仓规则】**：Skill 调用后按 cross-doc-checker 多仓解析规则将 `<change-dir>` 解析为 `{repo_path}/docs/changes/<change-name>/`，L5 测试文件 Glob 范围限定在 `{repo_path}/**`（**禁止**解析到 `{project_root}/docs/changes/`，**禁止**将文档复制到主项目根来适配单仓路径）
 2. 读取审查输出的findings列表
 3. 如果存在ERROR级finding，**【强制】执行3轮自动修复循环**（禁止跳过，禁止直接报告问题而不修复）：
 
@@ -67,7 +67,7 @@
        | python | python-ut |
        | js/ts/other | test-driven-development |
 
-       修复完成后重新调用 Skill tool: cross-doc-checker <change-name> --layer L5
+       修复完成后重新调用 Skill tool: cross-doc-checker <change-name> --layer L5 --recheck <本轮FAIL的CHECK-ID,...>（同样按多仓解析规则定位到 {repo_path}；增量复审只重跑失败项）
        读取新的findings列表
 4. 3轮后仍有ERROR级finding → 返回ESCALATE状态 + blocking_issues列表
 5. **【强制】禁止发现ERROR后直接返回ESCALATE而不执行修复循环**
