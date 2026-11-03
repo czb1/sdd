@@ -15,7 +15,7 @@ TEMPLATE_JSONC = """// =========================================================
     // ---- 内置步骤开关（true/false）----
     "version_check": true,  // Step 1 版本检查
     "show_progress": false,  // Step 8 展示当前进度（默认关闭）
-    "skill_consumption": false, // Step 9 任务 Skill 准备与消费（默认关闭）
+    "skill_consumption": false, // Step 9 / M-1a 任务 Skill 准备（默认关闭）
     "l4_review": true,      // Step 11 L4 实现追溯验证
     "code_review": true,    // Step 12 Code Review
     "unit_test": true,      // Step 13 单元测试（l5_coverage 依赖它，关闭则 L5 自动降级）

@@ -89,10 +89,10 @@ BUILT_IN_STEPS_BY_SKILL: Dict[str, List[Dict[str, Any]]] = {
             "default": False,
             "depends_on": [],
             "skill_md_step": "Step 9",
-            "description": "任务 Skill 准备与消费",
+            "description": "任务 Skill 准备",
             "ref_file": {
                 "single": "references/skill-consumption.md",
-                "multi": "references/skill-consumption.md",
+                "multi": "references/skill-consumption-multi.md",
             },
         },
         {
@@ -1929,7 +1929,7 @@ TEMPLATE_JSONC = """// =========================================================
     // ---- 内置步骤开关（true/false）----
     "version_check": true,  // Step 1 版本检查
     "show_progress": false,  // Step 8 展示当前进度（默认关闭）
-    "skill_consumption": false, // Step 9 任务 Skill 准备与消费（默认关闭）
+    "skill_consumption": false, // Step 9 / M-1a 任务 Skill 准备（默认关闭）
     "l4_review": true,      // Step 11 L4 实现追溯验证
     "code_review": true,    // Step 12 Code Review
     "unit_test": true,      // Step 13 单元测试（l5_coverage 依赖它，关闭则 L5 自动降级）
@@ -2389,6 +2389,9 @@ def run_fragment(
     Fragment shape (common-plan-arch.md §9.3):
       {repo, repo_cwd, plan_path, orchestration_points: {<slot>: [entries]}}
     Five slots: pre-codegen / post-codegen / post-l4 / post-review / post-ut.
+    core-apply additionally projects skill_consumption into built_in_steps as
+    multi-repo phase M-1a, without copying single-repo step numbers. Subagents
+    consume the fragment alone; plan_path is provenance, not another input.
 
     The fragment is ALWAYS written to
     docs/.flow_context/execution-plan-fragment-<skill>-<repo>.json
@@ -2426,6 +2429,16 @@ def run_fragment(
         "plan_path": str(plan_path),
         "orchestration_points": slots,
     }
+
+    if skill == "core-apply":
+        consumption = next((entry for entry in plan.get("steps", [])
+                            if entry.get("config_key") == "skill_consumption"
+                            and entry.get("type") == "built_in"
+                            and entry.get("enabled") is True), None)
+        phase = {"phase": "M-1a", "enabled": consumption is not None}
+        if consumption is not None:
+            phase["ref_file"] = consumption["ref_file"]["multi"]
+        fragment["built_in_steps"] = {"skill_consumption": phase}
 
     # ALWAYS write the fragment file (--fragment's primary behavior is
     # generating the subagent input file). --json only additionally mirrors

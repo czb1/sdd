@@ -20,12 +20,12 @@ Step 10 的循环对象**仅限** tasks.md 的 `## 代码生成任务` 章节（
 - **Step 10 循环内禁止**：执行 `## Code Review 任务` / `## 单元测试任务` 章节的任何 `- [ ]` 任务（包括但不限于 codecheck/cwd-audit/UT 生成等）
 - **Step 10 无待办**（1.x 全部 `- [x]`）且 Step 11~15 对应可配置步骤关闭 → 直接进入下一步/结束流程，**不得**将 2.x/3.x 未完成任务作为 Step 10 循环对象执行
 
-有待办 1.x 任务时，启用的内置准备步骤已由 Step 9 执行一次；按根执行计划在下方 10.3.4 执行每任务动作，不重新执行全量准备。
+启用时，Step 9 已一次完成关联检查、必要的检索/确认/安装，并准备任务上下文。代码生成只使用本轮 Step 9 提供的当前任务内容，不重新加载消费指令或执行准备流程；本轮 Step 9 未执行时不读取 Skill / 经验关联内容，也不沿用上轮准备结果。
 
 For each pending task in `## 代码生成任务` section:
 1. **针对当前任务进行代码理解**（详见下方 10.1）
 2. **解析设计锚点**（详见下方 10.2）
-3. **分阶段展示设计信息**（P0 → P1 → P2，详见下方 10.3），随后依次执行 10.3.4 内置检查点与 10.3.5 通用 pre-codegen 插槽
+3. **分阶段展示设计信息**（P0 → P1 → P2，详见下方 10.3），随后使用本轮 Step 9 已准备的当前任务上下文，再执行 10.3.4 通用 pre-codegen 插槽
 4. **代码生成原则自检**（对照 code-gen-principles.md C-1~C-15，详见下方 10.4）
 5. 执行代码生成（详见下方 10.5；测试策略为 `test-after` 时，按照10.5.1进行执行，否则按照10.5.2执行）
 6. 标记任务完成: `- [ ]` → `- [x]`
@@ -158,14 +158,7 @@ Working on task 1.1: explore-doc-reviewer Skill
 | P1 | `#1.2:原则名` 原则锚点 | 必须参考 | 第二阶段 |
 | P2 | `#4.x:流程名` 流程锚点 | 建议参考 | 第三阶段 |
 
-### 10.3.4 任务 Skill 消费 [可配置: skill_consumption]
-
-查根执行计划 `steps` 中 `config_key=skill_consumption`、`type=built_in`、`enabled=true` 的条目：
-- 存在 → Read 条目 `ref_file.single`，执行其每任务动作，复用 Step 9 的准备结果。
-- 不存在 → 跳过，不加载指令文件。
-随后进入 10.3.5；本内置检查点的启停不影响通用插槽。
-
-### 10.3.5 编排点插槽 pre-codegen（task 级，条件执行）
+### 10.3.4 编排点插槽 pre-codegen（task 级，条件执行）
 
 查执行计划 `execution-plan-core-apply.json` 的 `orchestration_points` 对象中 `pre-codegen` 插槽数组：
 - **存在启用条目** → 按计划顺序（`order` 升序）执行（reference 型：Read 该条目 `file` 指定的指令文件，按其中指令执行；skill 型：调用对应 skill，`run_mode=subagent` 时启动独立子代理）；显式 `enabled=false` 的条目跳过

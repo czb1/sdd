@@ -6,7 +6,7 @@
 
 ## 配置边界
 
-- 执行计划是唯一权威；由阶段专属指令检查 `steps` 中 `config_key=skill_consumption`、`type=built_in`、`enabled=true` 的条目，不重读或改写配置源。
+- 执行计划是唯一权威；单仓及 design 由阶段专属指令检查 `steps` 中 `config_key=skill_consumption`、`type=built_in`、`enabled=true` 的条目；多仓 apply 由本仓片段 `built_in_steps.skill_consumption` 的 `phase=M-1a`、`enabled=true` 控制，不重读或改写配置源。
 - 内置开关为 `false`、未配置（默认 `false`）或计划无启用条目时关闭。关闭时跳过新增的检索、候选确认、下载、关联内容读取及字段回写；保留已有字段与本地文件，继续原设计 / 代码生成流程。
 - 关闭不影响原有设计经验准备、普通任务文件读取、checkbox 更新和其他编排条目；持久关联内容须按下方安装边界保存。
 - 步骤开启只决定是否执行消费流程；用户对候选的“不使用”决定仍按下方规则优先处理。候选空答案规则不能反向开启该步骤。

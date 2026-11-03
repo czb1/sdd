@@ -7,7 +7,7 @@
 | 命名空间 | 内置键 | 默认 | 执行位置 |
 |----------|--------|------|----------|
 | core-design | skill_consumption | false | Phase 9：Phase 8 及其通用插槽完成后；多仓 M-2 全部完成后由主会话聚合执行 |
-| core-apply | skill_consumption | false | Step 9 / 多仓 M-2 启动前准备一次；Step 10 的 10.3.4 / 多仓每任务独立检查点消费 |
+| core-apply | skill_consumption | false | 单仓 Step 9 / 多仓 M-1a 准备一次；Step 10 / M-2 使用已准备的当前任务上下文 |
 
 ```jsonc
 {
@@ -20,12 +20,13 @@
 
 ## flow_config.py 修改范围
 
-1. `BUILT_IN_STEPS_BY_SKILL`：在 design / apply 中各注册 `skill_consumption`，`default=False`、`depends_on=[]`，`ref_file.single` / `ref_file.multi` 均为 `references/skill-consumption.md`（相对所属 Skill 安装目录）。design 的 `at=step-8` 对应 Phase 9；apply 的 `at=step-9` 对应 Step 9。
+1. `BUILT_IN_STEPS_BY_SKILL`：在 design / apply 中各注册 `skill_consumption`，`default=False`、`depends_on=[]`，`ref_file.single` 为 `references/skill-consumption.md`；design 的 `ref_file.multi` 与单仓共用，apply 的多仓指令为 `references/skill-consumption-multi.md`（均相对所属 Skill 安装目录）。design 的 `at=step-8` 对应 Phase 9；apply 的 `at=step-9` 对应 Step 9。
 2. `FIXED_STEPS` / `FIXED_STEPS_BY_SKILL`：插入对应步骤位，后续编号顺延，并同步注册项的位置与步骤标签。design 共 12 步，apply 共 16 步；计划中的步骤位保持连续。
 3. `TEMPLATE_JSONC`：两个命名空间的内置开关区增加 `"skill_consumption": false`，删除上一版同名自定义 reference 对象。design 命名空间仍保留原有一层示例注释；提取该命名空间后，布尔键为有效的 `false` 配置。
-4. 同步新增步骤后的阶段数量，以及 `expert_experience` 的职责描述：它准备已有经验上下文，任务 Skill 的查找、确认、安装与关联由独立的 `skill_consumption` 步骤承担。
+4. `run_fragment`：仅 core-apply 的片段增加 `built_in_steps.skill_consumption`，包含多仓 `phase=M-1a`、`enabled` 和启用时的 `ref_file`；不复制单仓步骤编号，保留通用插槽和来源路径。其他技能片段格式不变。
+5. 同步新增步骤后的阶段数量，以及 `expert_experience` 的职责描述：它准备已有经验上下文，任务 Skill 的查找、确认、安装与关联由独立的 `skill_consumption` 步骤承担。
 
-本仓已提供完整的 [flow_config.py](../scripts/flow_config.py)，原两段源码已合并为一个模块。保留 master 的配置解析、自动初始化、按配置重建计划、多仓片段与依赖处理实现，不恢复旧的交互确认或配置写回接口。
+本仓已提供完整的 [flow_config.py](../scripts/flow_config.py)，原两段源码已合并为一个模块。保留 master 的配置解析、自动初始化、按配置重建计划、多仓片段生成与依赖处理机制，不恢复旧的交互确认或配置写回接口。
 
 [模板常量](../../patches/flow_config_template.py) 与当前源码同步，仅供核对；只替换模板不能完成内置化。同步到目标框架时，同时同步本仓的阶段骨架、步骤表和引用文件，避免旧编号与新计划混用。
 
@@ -51,14 +52,16 @@ python /path/to/sdd/tests/test_skill_consumption_flow.py --flow-config coreharne
 
 ## 执行期规则
 
-唯一门控是当前 Skill 根计划 `steps` 中 `config_key=skill_consumption`、`type=built_in`、`enabled=true` 的条目。骨架从其 `ref_file.single` / `ref_file.multi` 动态加载指令。关闭态仅保留 `enabled=false` 的步骤位，不含 `config_key` / `ref_file`；不加载指令文件、不检索、确认、下载、读取关联内容或回写字段。已有字段和本地内容保留。
+单仓及 design 的门控是当前 Skill 执行计划 `steps` 中 `config_key=skill_consumption`、`type=built_in`、`enabled=true` 的条目。骨架从其 `ref_file.single` / `ref_file.multi` 动态加载指令。关闭态仅保留 `enabled=false` 的步骤位，不含 `config_key` / `ref_file`；不加载指令文件、不检索、确认、下载、读取关联内容或回写字段。已有字段和本地内容保留。
 
-多仓 apply 的通用插槽仍从本仓片段 `orchestration_points` 读取；内置步骤从片段 `plan_path` 指向的根计划 `steps` 读取。片段没有 `steps`，不能以片段无条目为由关闭或开启内置步骤。主会话准备一次、子代理按任务消费，新增用户决策交回主会话汇总。根计划/片段无效或路径不一致时停止并报告。
+多仓 apply 在 M-1 后生成各仓片段，由 M-1a 根据 `built_in_steps.skill_consumption` 的 `phase=M-1a`、`enabled=true` 和 `ref_file` 聚合准备一次；M-2 子代理只读本仓片段并使用已准备的任务上下文，新增用户决策交回主会话。`plan_path` 仅记录来源，子代理不读取根计划或单仓步骤。通用插槽仍从 `orchestration_points` 读取；消费关闭不关闭插槽。旧片段缺少多仓控制字段时，由主会话重新生成，禁止回退读取单仓 Step 9。
 
 ## 专属指令与验证
 
 - [设计阶段指令](../../core-design/references/skill-consumption.md)
-- [执行阶段指令](../../core-apply/references/skill-consumption.md)
+- [单仓准备指令](../../core-apply/references/skill-consumption.md)
+- [多仓准备与使用指令](../../core-apply/references/skill-consumption-multi.md)
+- [共用准备规则](../../core-apply/references/skill-preparation.md)
 - [共享消费规则](skill-consumption.md)
 
-回归覆盖两阶段四种启停组合、默认关闭、直接编辑配置后的计划重建、首次配置和命名空间静默初始化、非法配置保留旧计划、旧对象拒绝、连续步骤顺序、ref_file 条件加载、expert_experience 与通用自定义插槽独立性，以及多仓片段指向根计划的门控。运行 `python -m unittest discover -s tests -v`。本仓仍缺少各 Skill 的 main.py、core_paths、模板包及内网服务，完整 Agent 多仓执行和真实检索下载须在目标框架验收。
+回归覆盖两阶段四种启停组合、默认关闭、直接编辑配置后的计划重建、首次配置和命名空间静默初始化、非法配置保留旧计划、旧对象拒绝、连续步骤顺序、ref_file 条件加载、expert_experience 与通用自定义插槽独立性，以及多仓片段独立门控及其他技能片段格式兼容性。运行 `python -m unittest discover -s tests -v`。本仓仍缺少各 Skill 的 main.py、core_paths、模板包及内网服务，完整 Agent 多仓执行和真实检索下载须在目标框架验收。
