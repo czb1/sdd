@@ -16,7 +16,23 @@
 }
 ```
 
-`true` 开启、`false` 关闭；未配置时使用注册表默认值 `false`。两阶段独立，`expert_experience` 也独立；已有任务关联、本地文件和输入参数不能隐式开启步骤。将示例键合并到现有命名空间，保留其他配置。
+在 `~/.corespec/flow-config.json` 的对应命名空间中添加或修改 `skill_consumption`：`true` 开启、`false` 关闭；未配置时使用注册表默认值 `false`。保存后下次运行生效，将示例键合并到现有命名空间并保留其他配置。
+
+- `core-design` 开启后，在任务生成后查找候选，经选择确认后安装并关联到任务。
+- `core-apply` 开启后，先检查待办任务关联并补齐所需内容，再在代码生成时使用；多仓由主会话统一确认，各仓使用自己的任务上下文。
+
+两阶段独立，开启设计阶段不会自动开启执行阶段，`expert_experience` 也独立。已有任务关联、本地文件和输入参数不能隐式开启步骤；关闭后保留已有关联和本地文件，但不主动读取或使用它们。旧对象配置的替换方式见下文「已有配置迁移与生效」。
+
+## core-apply 单仓与多仓指令
+
+`flow_config.py` 为两种模式注册独立入口，路径均相对 `core-apply` 技能安装目录：
+
+| 模式 | 注册字段与指令文件 | 执行职责 |
+|------|--------------------|----------|
+| 单仓 | `ref_file.single` → [references/skill-consumption.md](../../core-apply/references/skill-consumption.md) | 主会话在 Step 9 准备本仓待办任务，Step 10 使用准备结果 |
+| 多仓 | `ref_file.multi` → [references/skill-consumption-multi.md](../../core-apply/references/skill-consumption-multi.md) | 主会话在 M-1a 汇总各仓待办、统一确认并按仓准备；M-2 子代理按本仓片段使用结果，不执行单仓 Step 9 |
+
+两份入口只共用 [skill-preparation.md](../../core-apply/references/skill-preparation.md) 中的关联检查、候选确认、安装和回写规则。多仓入口另行规定片段门控、按仓隔离上下文和用户决策回交主会话，不能用单仓入口替代。
 
 ## flow_config.py 修改范围
 

@@ -133,13 +133,6 @@ req_refine 补充：开启时需求细化产物在 `docs/.explore_context/req-re
 
 编排点：`post-rule-fetch`、`post-gather-context`、`post-code-understanding`、`pre-generate`、`post-generate`、`post-traceability`、`post-design-review`、`post-cleanup`。
 
-两个阶段分别配置，均默认关闭。在 `~/.corespec/flow-config.json` 中找到对应命名空间，添加或修改 `"skill_consumption": true` 即可开启；改为 `false` 关闭，保存后下次运行生效。保留该命名空间的其他配置项。
-
-- `core-design` 开启后，在任务生成后查找候选，经选择确认后安装并关联到任务。
-- `core-apply` 开启后，先检查待办任务关联并补齐所需内容，再在代码生成时使用；多仓由主会话统一确认，各仓使用自己的任务上下文。
-- 开启设计阶段不会自动开启执行阶段。关闭后保留已有关联和本地文件，但不主动读取或使用它们。
-- 如果旧配置里的 `skill_consumption` 是 `{ "type": "reference", ... }` 对象，将整个对象替换为 `true` 或 `false`，不要同时保留两种写法。
-
 ### 5.5 core-archive
 
 | 配置键 | 对应步骤 | 默认 | 关闭后果 |
