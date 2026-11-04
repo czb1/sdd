@@ -2,7 +2,7 @@
 
 **Skill**: core-apply
 **Depends On**: repo_assignments.json
-**Step Mapping Authority**: 以 steps.md 的多仓阶段表为准，执行顺序为 M-1 → M-1a → M-2~M-6；各阶段与单仓步骤的职责对应见该表。
+**Step Mapping Authority**: 以本技能目录下 [steps.md「多仓模式（is_multi_repo = True）」阶段表](../steps.md#多仓模式is_multi_repo--true) 为准，执行顺序为 M-1 → M-1a → M-2~M-6；各阶段与单仓步骤的职责对应见该表。
 
 ## 可配置步骤与编排点（多仓模式）
 

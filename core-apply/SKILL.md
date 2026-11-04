@@ -180,7 +180,8 @@ Always announce: "Using change: <name>" and how to override (e.g., `/core-apply 
 - 可配置步骤（M-3~M-6）：查 `execution-plan-core-apply.json` 的 `steps` 数组。含 `config_key=l4_review`/`code_review`/`unit_test`/`l5_coverage`（type=built_in）条目 → 从条目 `ref_file.multi` 取指令文件并 Read 执行；不含 → 跳过，**不 Read 指令文件**（内容不进上下文），直接进入下一 M 阶段
 - 主会话执行的可配置步骤（不映射 M 阶段，与单仓同一机制、同一执行计划条目）：`version_check`（Step 1，M-1 之前）/ `show_progress`（Step 8，M-2 之前）/ `completion_report`（Step 15，M-6 之后 on-completion）。这些步骤的 `ref_file.multi` 为单多仓通用文件，存在性判断同单仓
 - 编排点插槽（多仓下同样查执行计划 `orchestration_points` 对象）：`pre-codegen`（M-2 子代理内 task 级，10.3 与 10.4 之间）/ `post-codegen`（M-2 后）/ `post-l4`（M-3 后）/ `post-review`（M-4 后）/ `post-ut`（M-5 后）。对应插槽数组含条目 → 按条目 `type` 执行（reference 型 Read `file` 指令文件 / skill 型调用 skill，`run_mode=subagent` 时 spawn 独立子代理）；不含 → 跳过，指令文件不加载
-- **多仓子代理的计划输入**：M-1 确定仓列表后，主会话用 `main.py flow-config --fragment --skill core-apply --repo <repo> --repo-cwd <仓绝对路径> --project-root <根项目绝对路径>` 生成各仓片段（加 `--json` 可同时查看 JSON 输出）。M-1a 与 M-2 从本仓片段的 `built_in_steps.skill_consumption` 判断消费环节启停；通用插槽从 `orchestration_points` 读取。子代理不读取根计划，`plan_path` 仅记录片段来源。
+- **多仓子代理的计划输入**：M-1 确定仓列表后，主会话用 `main.py flow-config --fragment --skill core-apply --repo <repo> --repo-cwd <仓绝对路径> --project-root <根项目绝对路径>` 生成各仓片段（加 `--json` 可同时查看 JSON 输出）。M-1a 与 M-2 从本仓片段的 `built_in_steps.skill_consumption` 判断消费环节启停；通用插槽从 `orchestration_points` 读取。
+  M-2 子代理通过输入文件接收本仓片段，按片段中插槽条目执行（`pre-codegen` 任务级、`post-codegen` 生成完成后），不在插槽的编排点不执行；所有仓共享同一执行计划。**子代理不读取根计划，`plan_path` 仅记录片段来源。**
 - `l5_coverage` 依赖 `unit_test`：UT 关闭 → L5 自动降级（disabled 区 `dependency_downgraded`），两指令文件均不 Read
 - `skipped-core-apply.json` 只读：Step 15 on-completion 展示可配置步骤状态时读取，agent 全程不写
 
