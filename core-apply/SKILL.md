@@ -93,7 +93,7 @@ sys.exit(result.returncode)
 - **先创建当前阶段即可确定的任务**：
   - 固定主流程步骤：Step 0（构建执行计划）→ Step 1（版本检查）→ Step 2（选择 change）→ Step 3（多仓检测与路由）→ Step 15（完成展示）各建一个 task
   - 单仓模式：按执行计划 `steps` 数组，为每个启用的可配置内置步骤（`config_key` = `version_check`/`show_progress`/`skill_consumption`/`l4_review`/`code_review`/`unit_test`/`l5_coverage`/`completion_report`）创建 task；关闭的步骤不创建
-  - 多仓模式：为启用的 M-1a（任务 Skill 准备）创建 task，再按执行计划对应 M 阶段（M-3 l4_review / M-4 code_review / M-5 unit_test / M-6 l5_coverage）创建 task；关闭的 M 不创建
+  - 多仓模式：按执行计划及其派生片段，为启用的可配置 M 阶段创建 task（M-1a skill_consumption / M-3 l4_review / M-4 code_review / M-5 unit_test / M-6 l5_coverage）；关闭的阶段不创建 task
   - 每个启用的编排点插槽条目（`orchestration_points` 中的 reference/skill 步骤）同样创建 task
 - **Step 3 路由判定后必须补充创建分支 task（MANDATORY）**：执行计划在 Step 0 构建时尚未运行 Step 3 多仓检测，单仓/多仓分支无法在计划构建时预知，因此 **Step 3 输出路由结果后、进入主流程主体前，必须立即用 TaskCreate 补齐分支任务**：单仓 → Step 4（检查 change 状态）→ Step 5（获取执行指令）→ Step 6（读取上下文文件）→ Step 7（加载代码生成原则）→ Step 8（展示进度）→ Step 9（任务 Skill 准备，执行计划含启用条目才创建）→ Step 10（代码生成任务）各建一个 task；多仓 → 按 references/multi-repo.md 的 M-1、M-1a、M-2~M-6 各建一个 task（M 阶段与执行计划启停对应：关闭的 M 不创建）。**禁止跳过 Step 3 后的分支补建**——否则任务清单缺失主体执行环节，用户看不到后续要执行什么
 - task 描述注明对应步骤/config_key/M 阶段与启停状态；Step 10 任务循环与后续可配置步骤执行时，以这些 task 跟踪进度
