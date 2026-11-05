@@ -10,6 +10,7 @@ CoreSpec 的 core-design / core-apply 指令文件、core-shared 共享文档及
 
 任务 Skill 消费是**内置可启停步骤**：design / apply 各自通过 `skill_consumption: true/false` 控制，均默认 `false`。仅启用时加载对应阶段的消费指令；关闭时不检索、下载、消费关联内容或回写字段，已有字段和文件保留。
 
+- 项目级 Skill 安装到 `<仓库根目录>/.cac/skills/<name>/`；多仓分别安装到任务所属仓，`tasks.md` 的 Skill 字段记录对应本地路径。
 - core-design：Phase 8 生成任务后，Phase 9 完成查找、候选确认、安装与关联；多仓由主会话在 M-2 全部完成后聚合执行一次。
 - core-apply：单仓 Step 9 一次完成关联检查、必要的补齐与批量确认，Step 10 使用准备好的任务上下文；多仓由独立的 M-1a 准备，M-2 子代理只读本仓片段的 `built_in_steps.skill_consumption`，无需读取根计划或单仓 Step 9。
 - `expert_experience` 与消费开关独立；通用自定义插槽继续按自己的配置执行。流程配置自动生效不替代候选选择、安装冲突等业务确认。
